@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>집중력 훈련 - READIN</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #FFC0CB, #FFB6C1);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            color: #FFC0CB;
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .username {
+            color: #FFC0CB;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 10px 15px;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .username:hover {
+            background: #f0f0f0;
+        }
+
+        .dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            min-width: 150px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .dropdown.show {
+            display: block;
+        }
+
+        .dropdown a {
+            display: block;
+            padding: 10px 15px;
+            text-decoration: none;
+            color: #333;
+            transition: background 0.3s;
+        }
+
+        .dropdown a:hover {
+            background: #FFC0CB;
+            color: white;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .training-card {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .training-title {
+            font-size: 2em;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .instructions {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .instructions h3 {
+            color: #FFC0CB;
+            margin-bottom: 15px;
+        }
+
+        .instructions p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .training-controls {
+            margin: 40px 0;
+        }
+
+        .play-button {
+            background: #FFC0CB;
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            border-radius: 50%;
+            font-size: 2em;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+        }
+
+        .play-button:hover {
+            background: #FF69B4;
+            transform: scale(1.1);
+        }
+
+        .play-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            font-size: 1.2em;
+            margin: 20px 0;
+            color: #666;
+        }
+
+        .answer-section {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .answer-input {
+            padding: 15px;
+            font-size: 1.5em;
+            border: 3px solid #FFC0CB;
+            border-radius: 10px;
+            width: 200px;
+            text-align: center;
+            margin: 0 10px;
+        }
+
+        .answer-input:focus {
+            outline: none;
+            border-color: #FF69B4;
+        }
+
+        .submit-button {
+            background: #FFC0CB;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-left: 10px;
+        }
+
+        .submit-button:hover {
+            background: #FF69B4;
+        }
+
+        .result {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 1.2em;
+        }
+
+        .result.correct {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .result.incorrect {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .back-button {
+            background: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .back-button:hover {
+            background: #545b62;
+        }
+
+        .sound-visualization {
+            width: 100px;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            margin: 20px auto;
+            position: relative;
+            overflow: hidden;
+            display: none;
+        }
+
+        .sound-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #FFC0CB, #FF69B4);
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .training-card {
+                padding: 20px;
+            }
+            
+            .training-title {
+                font-size: 1.5em;
+            }
+            
+            .answer-input {
+                width: 150px;
+                font-size: 1.2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">READIN</div>
+        <div class="user-menu">
+            <div class="username" onclick="toggleDropdown()"><%= username %> ▼</div>
+            <div class="dropdown" id="dropdown">
+                <a href="/dashboard">대시보드</a>
+                <a href="/change-password">비밀번호 변경</a>
+                <a href="/logout">로그아웃</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="training-card">
+            <h1 class="training-title">집중력 훈련</h1>
+            
+            <div class="instructions">
+                <h3>훈련 방법</h3>
+                <p>1. 아래 재생 버튼을 눌러 소리를 들어보세요.</p>
+                <p>2. 소리가 총 몇 번 반복되는지 주의깊게 들어보세요.</p>
+                <p>3. 소리가 끝나면 들은 횟수를 입력하고 제출하세요.</p>
+                <p><strong>주의:</strong> 실제 횟수의 ±1 범위 내의 답변은 정답으로 인정됩니다.</p>
+            </div>
+
+            <div class="training-controls">
+                <button class="play-button" onclick="startTraining()" id="playButton">▶</button>
+                <div class="status" id="status">재생 버튼을 눌러 시작하세요</div>
+                <div class="sound-visualization" id="soundViz">
+                    <div class="sound-bar" id="soundBar"></div>
+                </div>
+            </div>
+
+            <div class="answer-section" id="answerSection">
+                <h3>몇 번 들렸나요?</h3>
+                <input type="number" class="answer-input" id="answerInput" min="1" placeholder="횟수 입력">
+                <button class="submit-button" onclick="submitAnswer()">제출</button>
+            </div>
+
+            <div class="result" id="result"></div>
+
+            <a href="/dashboard" class="back-button">대시보드로 돌아가기</a>
+        </div>
+    </div>
+
+    <script>
+        const actualCount = <%= actualCount %>;
+        let isPlaying = false;
+        let currentCount = 0;
+
+        function toggleDropdown() {
+            const dropdown = document.getElementById('dropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        document.querySelector('.user-menu').addEventListener('mouseenter', function() {
+            document.getElementById('dropdown').classList.add('show');
+        });
+
+        document.querySelector('.user-menu').addEventListener('mouseleave', function() {
+            setTimeout(function() {
+                document.getElementById('dropdown').classList.remove('show');
+            }, 300);
+        });
+
+        async function startTraining() {
+            if (isPlaying) return;
+            
+            isPlaying = true;
+            const playButton = document.getElementById('playButton');
+            const status = document.getElementById('status');
+            const soundViz = document.getElementById('soundViz');
+            const soundBar = document.getElementById('soundBar');
+            
+            playButton.disabled = true;
+            playButton.textContent = '⏸';
+            status.textContent = '소리를 재생 중입니다. 집중하세요!';
+            soundViz.style.display = 'block';
+            currentCount = 0;
+
+            // Create audio context for beep sound
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            for (let i = 0; i < actualCount; i++) {
+                // Visual feedback
+                soundBar.style.width = '100%';
+                
+                // Create beep sound
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.2);
+                
+                currentCount++;
+                
+                // Wait between beeps
+                await new Promise(resolve => {
+                    setTimeout(() => {
+                        soundBar.style.width = '0%';
+                        resolve();
+                    }, 200);
+                });
+                
+                if (i < actualCount - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            }
+            
+            // Training completed
+            playButton.textContent = '✓';
+            playButton.style.background = '#28a745';
+            status.textContent = '소리 재생이 완료되었습니다. 답변을 입력하세요.';
+            soundViz.style.display = 'none';
+            
+            document.getElementById('answerSection').style.display = 'block';
+            document.getElementById('answerInput').focus();
+        }
+
+        async function submitAnswer() {
+            const answerInput = document.getElementById('answerInput');
+            const userAnswer = parseInt(answerInput.value);
+            
+            if (!userAnswer || userAnswer < 1) {
+                alert('올바른 횟수를 입력해주세요.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/submit-answer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        actualCount: actualCount,
+                        userAnswer: userAnswer
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult(result);
+                } else {
+                    alert(result.message || '제출에 실패했습니다.');
+                }
+            } catch (error) {
+                alert('서버와의 통신에 실패했습니다.');
+                console.error('Error:', error);
+            }
+        }
+
+        function showResult(result) {
+            const resultDiv = document.getElementById('result');
+            const answerSection = document.getElementById('answerSection');
+            
+            answerSection.style.display = 'none';
+            
+            if (result.isCorrect) {
+                resultDiv.className = 'result correct';
+                resultDiv.innerHTML = `
+                    <h3>🎉 정답입니다!</h3>
+                    <p>실제 횟수: ${result.actualCount}번</p>
+                    <p>당신의 답변: ${result.userAnswer}번</p>
+                    <p>남은 도전 기회: ${result.remainingAttempts}번</p>
+                `;
+            } else {
+                resultDiv.className = 'result incorrect';
+                resultDiv.innerHTML = `
+                    <h3>❌ 아쉽게 틀렸습니다</h3>
+                    <p>실제 횟수: ${result.actualCount}번</p>
+                    <p>당신의 답변: ${result.userAnswer}번</p>
+                    <p>남은 도전 기회: ${result.remainingAttempts}번</p>
+                `;
+            }
+            
+            resultDiv.style.display = 'block';
+        }
+
+        // Enter key support for answer input
+        document.getElementById('answerInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                submitAnswer();
+            }
+        });
+    </script>
+</body>
+</html>
