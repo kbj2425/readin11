@@ -331,7 +331,6 @@
                 <div class="sound-visualization" id="soundViz">
                     <div class="sound-bar" id="soundBar"></div>
                 </div>
-                <div class="count-display" id="countDisplay">0</div>
             </div>
 
             <div class="answer-section" id="answerSection">
@@ -379,13 +378,11 @@
             const status = document.getElementById('status');
             const soundViz = document.getElementById('soundViz');
             const soundBar = document.getElementById('soundBar');
-            const countDisplay = document.getElementById('countDisplay');
             
             playButton.disabled = true;
             playButton.textContent = '⏸';
             status.textContent = `소리를 재생 중입니다 (100 BPM). 집중하세요!`;
             soundViz.style.display = 'block';
-            countDisplay.style.display = 'block';
             currentCount = 0;
 
             // Create audio context for beep sound
@@ -393,9 +390,8 @@
             
             for (let i = 0; i < actualCount; i++) {
                 currentCount = i + 1;
-                countDisplay.textContent = currentCount;
                 
-                // Visual feedback
+                // Visual feedback (소리만 표시, 횟수는 표시하지 않음)
                 soundBar.style.width = '100%';
                 
                 // Create beep sound
@@ -435,7 +431,6 @@
             playButton.style.background = '#28a745';
             status.textContent = '소리 재생이 완료되었습니다. 답변을 입력하세요.';
             soundViz.style.display = 'none';
-            countDisplay.style.display = 'none';
             
             document.getElementById('answerSection').style.display = 'block';
             document.getElementById('answerInput').focus();
