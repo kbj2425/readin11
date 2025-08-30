@@ -80,20 +80,11 @@ db.serialize(() => {
     db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('allow_password_change', '1')");
 });
 
-// Helper functions - UTC+9시간 방식으로 수정
+// Helper functions - 8월 30일부터 시작, 내일 오전 9시부터 40-49
 function getTodayKST() {
     const now = new Date();
     const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC + 9시간
     return kstTime.toISOString().split('T')[0]; // YYYY-MM-DD
-}
-
-function getDaysSinceStart() {
-    const startDate = new Date('2024-01-01T00:00:00Z'); // UTC 기준 시작일
-    const today = new Date();
-    const kstToday = new Date(today.getTime() + (9 * 60 * 60 * 1000)); // UTC + 9시간
-    
-    const diffTime = kstToday.getTime() - startDate.getTime();
-    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
 
 function getKSTTimestamp() {
@@ -102,8 +93,25 @@ function getKSTTimestamp() {
     return kstTime.toISOString().replace('T', ' ').substring(0, 19); // YYYY-MM-DD HH:mm:ss
 }
 
+function getDaysSinceStart() {
+    const startDate = new Date('2025-08-30T00:00:00Z'); // 8월 30일 UTC 기준 시작
+    const now = new Date();
+    const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC + 9시간
+    
+    // KST 기준으로 오전 9시 이전이면 전날로 계산
+    const kstHour = kstTime.getUTCHours();
+    let adjustedKstTime = new Date(kstTime);
+    if (kstHour < 9) {
+        adjustedKstTime.setUTCDate(adjustedKstTime.getUTCDate() - 1);
+    }
+    
+    const diffTime = adjustedKstTime.getTime() - startDate.getTime();
+    return Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+}
+
 function getDifficultyRange(level) {
     const days = getDaysSinceStart();
+    console.log(`현재 경과일: ${days}일 (8월 30일부터 계산)`);
     
     switch(level) {
         case 1: // 초급
@@ -116,10 +124,10 @@ function getDifficultyRange(level) {
             const base2 = 10 + (cycle2 * 10);
             return { min: base2, max: base2 + 9 };
         
-        case 3: // 기본
+        case 3: // 기본 - 오늘(8월 30일)은 30-39, 내일 오전 9시부터 40-49
         default:
-            const cycle3 = days % 16;
-            const base3 = 30 + (cycle3 * 10);
+            // days가 0이면 30-39, days가 1이면 40-49
+            const base3 = 30 + (days * 10);
             return { min: base3, max: base3 + 9 };
     }
 }
@@ -269,6 +277,8 @@ app.get('/training', requireAuth, (req, res) => {
         const difficultyRange = getDifficultyRange(req.session.level);
         const actualCount = Math.floor(Math.random() * (difficultyRange.max - difficultyRange.min + 1)) + difficultyRange.min;
         
+        console.log(`훈련 생성 - 사용자: ${req.session.username}, 레벨: ${req.session.level}, 범위: ${difficultyRange.min}-${difficultyRange.max}, 실제 횟수: ${actualCount}`);
+        
         res.render('training', {
             username: req.session.username,
             actualCount,
@@ -321,6 +331,8 @@ app.post('/submit-answer', requireAuth, (req, res) => {
                 db.run("INSERT INTO daily_attempts (user_id, date, attempts) VALUES (?, ?, 1)",
                        [userId, today]);
             }
+            
+            console.log(`훈련 완료 - 사용자: ${req.session.username}, 실제: ${actualCount}, 답변: ${userAnswer}, 정답: ${isCorrect}, 시간: ${kstTimestamp}`);
             
             res.json({
                 success: true,
@@ -509,7 +521,32 @@ app.get('/logout', (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`=== READIN 집중력 훈련 서버 시작 ===`);
+    console.log(`서버 포트: ${PORT}`);
     console.log(`현재 KST 시간: ${getKSTTimestamp()}`);
     console.log(`오늘 날짜 (KST): ${getTodayKST()}`);
+    
+    const days = getDaysSinceStart();
+    const range = getDifficultyRange(3);
+    console.log(`8월 30일부터 경과일: ${days}일`);
+    console.log(`현재 기본 레벨 난이도: ${range.min}-${range.max}`);
+    
+    const now = new Date();
+    const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    const kstHour = kstTime.getUTCHours();
+    
+    if (days === 0) {
+        console.log(`✅ 오늘(8월 30일): 30-39 범위`);
+        if (kstHour < 9) {
+            console.log(`⏰ 오전 ${kstHour}시 - 아직 첫날 범위 유지`);
+        } else {
+            console.log(`⏰ 오전 ${kstHour}시 - 첫날 범위 적용 중`);
+        }
+    } else if (days === 1) {
+        console.log(`✅ 내일: 40-49 범위로 변경됨`);
+        console.log(`⏰ 오전 9시부터 새로운 난이도 적용`);
+    }
+    
+    console.log(`관리자 계정: readin / admin123`);
+    console.log(`=====================================`);
 });
