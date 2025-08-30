@@ -4,7 +4,6 @@ const bcrypt = require('bcrypt');
 const bodyParser = require('body-parser');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
-const moment = require('moment-timezone');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -46,7 +45,7 @@ db.serialize(() => {
         is_correct BOOLEAN,
         level INTEGER,
         date TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        timestamp TEXT,
         FOREIGN KEY (user_id) REFERENCES users (id)
     )`);
 
@@ -81,15 +80,26 @@ db.serialize(() => {
     db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('allow_password_change', '1')");
 });
 
-// Helper functions
+// Helper functions - UTC+9시간 방식으로 수정
 function getTodayKST() {
-    return moment().tz('Asia/Seoul').format('YYYY-MM-DD');
+    const now = new Date();
+    const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC + 9시간
+    return kstTime.toISOString().split('T')[0]; // YYYY-MM-DD
 }
 
 function getDaysSinceStart() {
-    const startDate = moment.tz('2024-01-01', 'Asia/Seoul');
-    const today = moment().tz('Asia/Seoul');
-    return today.diff(startDate, 'days');
+    const startDate = new Date('2024-01-01T00:00:00Z'); // UTC 기준 시작일
+    const today = new Date();
+    const kstToday = new Date(today.getTime() + (9 * 60 * 60 * 1000)); // UTC + 9시간
+    
+    const diffTime = kstToday.getTime() - startDate.getTime();
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+}
+
+function getKSTTimestamp() {
+    const now = new Date();
+    const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC + 9시간
+    return kstTime.toISOString().replace('T', ' ').substring(0, 19); // YYYY-MM-DD HH:mm:ss
 }
 
 function getDifficultyRange(level) {
@@ -276,6 +286,7 @@ app.post('/submit-answer', requireAuth, (req, res) => {
     const { actualCount, userAnswer } = req.body;
     const today = getTodayKST();
     const userId = req.session.userId;
+    const kstTimestamp = getKSTTimestamp();
     
     // Check remaining attempts
     db.get("SELECT * FROM daily_attempts WHERE user_id = ? AND date = ?", 
@@ -291,9 +302,12 @@ app.post('/submit-answer', requireAuth, (req, res) => {
         
         const isCorrect = isCorrectAnswer(parseInt(actualCount), parseInt(userAnswer));
         
-        // Record the training
-        db.run("INSERT INTO training_records (user_id, actual_count, user_answer, is_correct, level, date) VALUES (?, ?, ?, ?, ?, ?)",
-               [userId, actualCount, userAnswer, isCorrect, req.session.level, today], (err) => {
+        // Record the training with KST timestamp
+        db.run(`INSERT INTO training_records 
+                (user_id, actual_count, user_answer, is_correct, level, date, timestamp) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)`,
+               [userId, actualCount, userAnswer, isCorrect, req.session.level, today, kstTimestamp], 
+               (err) => {
             if (err) {
                 res.json({ success: false, message: '기록 저장에 실패했습니다.' });
                 return;
@@ -496,4 +510,6 @@ app.get('/logout', (req, res) => {
 // Start server
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    console.log(`현재 KST 시간: ${getKSTTimestamp()}`);
+    console.log(`오늘 날짜 (KST): ${getTodayKST()}`);
 });
