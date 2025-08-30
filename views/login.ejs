@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>READIN 집중력 훈련</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #FFC0CB, #FFB6C1);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: #FFC0CB;
+            font-size: 2.5em;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo p {
+            color: #666;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #FFC0CB;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #FF69B4;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: #FFC0CB;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .login-btn:hover {
+            background: #FF69B4;
+        }
+
+        .error {
+            background: #ffe6e6;
+            color: #d63031;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .info {
+            background: #e6f3ff;
+            color: #0066cc;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .auto-signup-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f8ff;
+            border-radius: 8px;
+            border-left: 4px solid #FFC0CB;
+        }
+
+        .auto-signup-info h3 {
+            color: #FFC0CB;
+            margin-bottom: 10px;
+        }
+
+        .auto-signup-info p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <h1>READIN</h1>
+            <p>독서논술코칭 방이센터 집중력 훈련</p>
+        </div>
+
+        <% if (error) { %>
+        <div class="error">
+            <%= error %>
+        </div>
+        <% } %>
+
+        <form method="POST" action="/login">
+            <div class="form-group">
+                <label for="username">사용자 이름</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">비밀번호</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+
+            <button type="submit" class="login-btn">로그인</button>
+        </form>
+
+        <% if (autoSignup) { %>
+        <div class="auto-signup-info">
+            <h3>신규 학생 안내</h3>
+            <p>
+                처음 참여하는 학생은 원하는 사용자 이름과 비밀번호 <strong>123456</strong>을 입력하면 
+                자동으로 계정이 생성됩니다.
+            </p>
+        </div>
+        <% } %>
+    </div>
+</body>
+</html>
