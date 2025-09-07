@@ -35,6 +35,9 @@ async function query(text, params = []) {
                            `Force password change failed for user ${userId}: ${error.message}`);
         res.json({ success: false, message: '비밀번호 변경에 실패했습니다.' });
     }
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 app.get('/logout', async (req, res) => {
