@@ -492,11 +492,12 @@
                                 <option value="3" <%= user.level === 3 ? 'selected' : '' %>>레벨 3 (기본)</option>
                             </select>
                         </td>
-                        <td>
-                            <button class="action-button bonus-btn" onclick="giveBonus(<%= user.id %>)">추가 기회</button>
-                            <button class="action-button change-pwd-btn" onclick="changePassword(<%= user.id %>, '<%= user.username %>')">비밀번호</button>
-                            <button class="action-button delete-btn" onclick="deleteUser(<%= user.id %>, '<%= user.username %>')">삭제</button>
-                        </td>
+                       <td>
+    <button class="action-button bonus-btn" onclick="giveBonus(<%= user.id %>)">추가 기회</button>
+    <button class="action-button change-pwd-btn" onclick="changePassword(<%= user.id %>, '<%= user.username %>')">비밀번호</button>
+    <button class="action-button view-records-btn" onclick="viewUserRecords(<%= user.id %>, '<%= user.username %>')">기록 보기</button>
+    <button class="action-button delete-btn" onclick="deleteUser(<%= user.id %>, '<%= user.username %>')">삭제</button>
+</td>
                     </tr>
                     <% }); %>
                 </tbody>
