@@ -557,374 +557,394 @@
         </div>
     </div>
 
-    <script>
-        let currentUserId = null;
-        let dropdownTimeout;
+<script>
+    let currentUserId = null;
+    let dropdownTimeout;
 
-        // Set today's date as default
-        document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
+    // Set today's date as default
+    document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
 
-        function toggleDropdown() {
-            const dropdown = document.getElementById('dropdown');
-            dropdown.classList.toggle('show');
-        }
+    function toggleDropdown() {
+        const dropdown = document.getElementById('dropdown');
+        dropdown.classList.toggle('show');
+    }
 
-        document.querySelector('.user-menu').addEventListener('mouseenter', function() {
-            clearTimeout(dropdownTimeout);
-            document.getElementById('dropdown').classList.add('show');
-        });
+    document.querySelector('.user-menu').addEventListener('mouseenter', function() {
+        clearTimeout(dropdownTimeout);
+        document.getElementById('dropdown').classList.add('show');
+    });
 
-        document.querySelector('.user-menu').addEventListener('mouseleave', function() {
-            dropdownTimeout = setTimeout(function() {
-                document.getElementById('dropdown').classList.remove('show');
-            }, 300);
-        });
+    document.querySelector('.user-menu').addEventListener('mouseleave', function() {
+        dropdownTimeout = setTimeout(function() {
+            document.getElementById('dropdown').classList.remove('show');
+        }, 300);
+    });
 
-        async function toggleSetting(key) {
-            try {
-                const response = await fetch('/admin/toggle-setting', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ key })
-                });
-                
-                const result = await response.json();
-                if (!result.success) {
-                    alert('설정 변경에 실패했습니다.');
-                    location.reload();
-                }
-            } catch (error) {
-                alert('서버와의 통신에 실패했습니다.');
-                location.reload();
-            }
-        }
-
-        async function searchUsers(searchTerm) {
-            if (searchTerm.length === 0) {
-                location.reload();
-                return;
-            }
-
-            try {
-                const response = await fetch('/admin/search', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ searchTerm })
-                });
-                
-                const result = await response.json();
-                updateUsersTable(result.users);
-            } catch (error) {
-                console.error('Search error:', error);
-            }
-        }
-
-        function updateUsersTable(users) {
-            const tbody = document.querySelector('#usersTable tbody');
-            tbody.innerHTML = '';
-            
-            users.forEach(user => {
-                const row = document.createElement('tr');
-                row.setAttribute('data-user-id', user.id);
-                row.setAttribute('data-username', user.username);
-                row.innerHTML = `
-                    <td>${user.username}</td>
-                    <td>
-                        <select class="level-select" onchange="updateLevel(${user.id}, this.value)">
-                            <option value="1" ${user.level === 1 ? 'selected' : ''}>레벨 1 (초급)</option>
-                            <option value="2" ${user.level === 2 ? 'selected' : ''}>레벨 2 (중급)</option>
-                            <option value="3" ${user.level === 3 ? 'selected' : ''}>레벨 3 (기본)</option>
-                        </select>
-                    </td>
-                    <td>
-                        <button class="action-button bonus-btn" onclick="giveBonus(${user.id})">추가 기회</button>
-                        <button class="action-button change-pwd-btn" onclick="changePassword(${user.id}, '${user.username}')">비밀번호</button>
-                        <button class="action-button delete-btn" onclick="deleteUser(${user.id}, '${user.username}')">삭제</button>
-                    </td>
-                `;
-                tbody.appendChild(row);
+    async function toggleSetting(key) {
+        try {
+            const response = await fetch('/admin/toggle-setting', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ key })
             });
-        }
-
-        async function updateLevel(userId, level) {
-            try {
-                const response = await fetch('/admin/update-level', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ userId, level: parseInt(level) })
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    alert('레벨이 성공적으로 업데이트되었습니다.');
-                } else {
-                    alert(result.message || '레벨 업데이트에 실패했습니다.');
-                }
-            } catch (error) {
-                alert('서버와의 통신에 실패했습니다.');
+            
+            const result = await response.json();
+            if (!result.success) {
+                alert('설정 변경에 실패했습니다.');
+                location.reload();
             }
+        } catch (error) {
+            alert('서버와의 통신에 실패했습니다.');
+            location.reload();
         }
-
-        async function giveBonus(userId) {
-            if (!confirm('이 참가자에게 추가 도전 기회를 주시겠습니까?')) {
-                return;
-            }
-
-            try {
-                const response = await fetch('/admin/bonus-attempt', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ userId })
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    alert('추가 도전 기회가 부여되었습니다.');
-                } else {
-                    alert('추가 기회 부여에 실패했습니다.');
-                }
-            } catch (error) {
-                alert('서버와의 통신에 실패했습니다.');
-            }
-        }
-
-        function changePassword(userId, username) {
-            currentUserId = userId;
-            document.getElementById('modalUserName').textContent = `${username}의 비밀번호를 변경합니다.`;
-            document.getElementById('newPassword').value = '';
-            document.getElementById('passwordModal').style.display = 'block';
-        }
-
-        async function confirmPasswordChange() {
-            const newPassword = document.getElementById('newPassword').value;
-            if (!newPassword) {
-                alert('새 비밀번호를 입력해주세요.');
-                return;
-            }
-
-            try {
-                const response = await fetch('/admin/force-change-password', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ 
-                        userId: currentUserId, 
-                        newPassword 
-                    })
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    alert('비밀번호가 성공적으로 변경되었습니다.');
-                    closeModal();
-                } else {
-                    alert(result.message || '비밀번호 변경에 실패했습니다.');
-                }
-            } catch (error) {
-                alert('서버와의 통신에 실패했습니다.');
-            }
-        }
-
-        function deleteUser(userId, username) {
-            currentUserId = userId;
-            document.getElementById('deleteUserName').textContent = `정말로 "${username}" 사용자를 삭제하시겠습니까?`;
-            document.getElementById('deleteModal').style.display = 'block';
-        }
-
-        async function confirmDelete() {
-            try {
-                const response = await fetch('/admin/delete-user', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ userId: currentUserId })
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    alert('사용자가 성공적으로 삭제되었습니다.');
-                    closeModal();
-                    location.reload();
-                } else {
-                    alert(result.message || '사용자 삭제에 실패했습니다.');
-                }
-            } catch (error) {
-                alert('서버와의 통신에 실패했습니다.');
-            }
-        }
-
-        function closeModal() {
-            document.getElementById('passwordModal').style.display = 'none';
-            document.getElementById('deleteModal').style.display = 'none';
-            currentUserId = null;
-        }
-
-       async function viewRecords() {
-    const date = document.getElementById('recordDate').value;
-    const userSearch = document.getElementById('userSearch').value;
-    
-    if (!date) {
-        alert('날짜를 선택해주세요.');
-        return;
     }
 
-    try {
-        let url = `/admin/records/${date}`;
-        if (userSearch) {
-            url += `?user=${encodeURIComponent(userSearch)}`;
-        }
-        
-        const response = await fetch(url);
-        const result = await response.json();
-                
-                const recordsBody = document.getElementById('recordsBody');
-                const recordsTable = document.getElementById('recordsTable');
-                
-                recordsBody.innerHTML = '';
-                
-                if (result.records && result.records.length > 0) {
-                    result.records.forEach(record => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${record.username}</td>
-                            <td>${record.actual_count}</td>
-                            <td>${record.user_answer}</td>
-                            <td class="${record.is_correct ? 'correct-record' : 'incorrect-record'}">
-                                ${record.is_correct ? '정답' : '오답'}
-                            </td>
-                            <td>레벨 ${record.level}</td>
-                            <td>${new Date(record.timestamp).toLocaleTimeString('ko-KR')}</td>
-                        `;
-                        recordsBody.appendChild(row);
-                    });
-                    recordsTable.style.display = 'table';
-                } else {
-                    recordsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">해당 날짜에 기록이 없습니다.</td></tr>';
-                    recordsTable.style.display = 'table';
-                }
-            } catch (error) {
-                alert('기록 조회에 실패했습니다.');
-                console.error('Error:', error);
-            }
+    async function searchUsers(searchTerm) {
+        if (searchTerm.length === 0) {
+            location.reload();
+            return;
         }
 
-        // Close modals when clicking outside
-        window.onclick = function(event) {
-            const passwordModal = document.getElementById('passwordModal');
-            const deleteModal = document.getElementById('deleteModal');
-            if (event.target === passwordModal) {
-                passwordModal.style.display = 'none';
-            }
-            if (event.target === deleteModal) {
-                deleteModal.style.display = 'none';
-            }
+        try {
+            const response = await fetch('/admin/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ searchTerm })
+            });
+            
+            const result = await response.json();
+            updateUsersTable(result.users);
+        } catch (error) {
+            console.error('Search error:', error);
         }
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(event) {
-            const userMenu = document.querySelector('.user-menu');
-            if (!userMenu.contains(event.target)) {
-                document.getElementById('dropdown').classList.remove('show');
-            }
-// 학생별 기록 보기
-async function viewUserRecords(userId, username) {
-    try {
-        const statsResponse = await fetch(`/admin/user-stats/${userId}`);
-        const statsData = await statsResponse.json();
-        
-        const recordsResponse = await fetch(`/admin/user-records/${userId}?limit=30`);
-        const recordsData = await recordsResponse.json();
-        
-        showUserRecordsModal(username, statsData.stats, recordsData.records);
-    } catch (error) {
-        console.error('학생 기록 조회 오류:', error);
-        alert('기록을 불러오는데 실패했습니다.');
     }
-}
 
-function showUserRecordsModal(username, stats, records) {
-    const modalHtml = `
-        <div class="user-records-modal" id="userRecordsModal">
-            <div class="user-records-content">
-                <h2>${username}의 훈련 기록</h2>
-                
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-number">${stats.totalAttempts}</div>
-                        <div class="stat-label">총 훈련 횟수</div>
+    function updateUsersTable(users) {
+        const tbody = document.querySelector('#usersTable tbody');
+        tbody.innerHTML = '';
+        
+        users.forEach(user => {
+            const row = document.createElement('tr');
+            row.setAttribute('data-user-id', user.id);
+            row.setAttribute('data-username', user.username);
+            row.innerHTML = `
+                <td>${user.username}</td>
+                <td>
+                    <select class="level-select" onchange="updateLevel(${user.id}, this.value)">
+                        <option value="1" ${user.level === 1 ? 'selected' : ''}>레벨 1 (초급)</option>
+                        <option value="2" ${user.level === 2 ? 'selected' : ''}>레벨 2 (중급)</option>
+                        <option value="3" ${user.level === 3 ? 'selected' : ''}>레벨 3 (기본)</option>
+                    </select>
+                </td>
+                <td>
+                    <button class="action-button bonus-btn" onclick="giveBonus(${user.id})">추가 기회</button>
+                    <button class="action-button change-pwd-btn" onclick="changePassword(${user.id}, '${user.username}')">비밀번호</button>
+                    <button class="action-button view-records-btn" onclick="viewUserRecords(${user.id}, '${user.username}')">기록 보기</button>
+                    <button class="action-button delete-btn" onclick="deleteUser(${user.id}, '${user.username}')">삭제</button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    async function updateLevel(userId, level) {
+        try {
+            const response = await fetch('/admin/update-level', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ userId, level: parseInt(level) })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                alert('레벨이 성공적으로 업데이트되었습니다.');
+            } else {
+                alert(result.message || '레벨 업데이트에 실패했습니다.');
+            }
+        } catch (error) {
+            alert('서버와의 통신에 실패했습니다.');
+        }
+    }
+
+    async function giveBonus(userId) {
+        if (!confirm('이 참가자에게 추가 도전 기회를 주시겠습니까?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/admin/bonus-attempt', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ userId })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                alert('추가 도전 기회가 부여되었습니다.');
+            } else {
+                alert('추가 기회 부여에 실패했습니다.');
+            }
+        } catch (error) {
+            alert('서버와의 통신에 실패했습니다.');
+        }
+    }
+
+    function changePassword(userId, username) {
+        currentUserId = userId;
+        document.getElementById('modalUserName').textContent = `${username}의 비밀번호를 변경합니다.`;
+        document.getElementById('newPassword').value = '';
+        document.getElementById('passwordModal').style.display = 'block';
+    }
+
+    async function confirmPasswordChange() {
+        const newPassword = document.getElementById('newPassword').value;
+        if (!newPassword) {
+            alert('새 비밀번호를 입력해주세요.');
+            return;
+        }
+
+        try {
+            const response = await fetch('/admin/force-change-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    userId: currentUserId, 
+                    newPassword 
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                alert('비밀번호가 성공적으로 변경되었습니다.');
+                closeModal();
+            } else {
+                alert(result.message || '비밀번호 변경에 실패했습니다.');
+            }
+        } catch (error) {
+            alert('서버와의 통신에 실패했습니다.');
+        }
+    }
+
+    function deleteUser(userId, username) {
+        currentUserId = userId;
+        document.getElementById('deleteUserName').textContent = `정말로 "${username}" 사용자를 삭제하시겠습니까?`;
+        document.getElementById('deleteModal').style.display = 'block';
+    }
+
+    async function confirmDelete() {
+        try {
+            const response = await fetch('/admin/delete-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ userId: currentUserId })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                alert('사용자가 성공적으로 삭제되었습니다.');
+                closeModal();
+                location.reload();
+            } else {
+                alert(result.message || '사용자 삭제에 실패했습니다.');
+            }
+        } catch (error) {
+            alert('서버와의 통신에 실패했습니다.');
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('passwordModal').style.display = 'none';
+        document.getElementById('deleteModal').style.display = 'none';
+        currentUserId = null;
+    }
+
+    async function viewRecords() {
+        const date = document.getElementById('recordDate').value;
+        const userSearch = document.getElementById('userSearch').value;
+        
+        if (!date) {
+            alert('날짜를 선택해주세요.');
+            return;
+        }
+
+        try {
+            let url = `/admin/records/${date}`;
+            if (userSearch) {
+                url += `?user=${encodeURIComponent(userSearch)}`;
+            }
+            
+            const response = await fetch(url);
+            const result = await response.json();
+                    
+            const recordsBody = document.getElementById('recordsBody');
+            const recordsTable = document.getElementById('recordsTable');
+            
+            recordsBody.innerHTML = '';
+            
+            if (result.records && result.records.length > 0) {
+                result.records.forEach(record => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${record.username}</td>
+                        <td>${record.actual_count}</td>
+                        <td>${record.user_answer}</td>
+                        <td class="${record.is_correct ? 'correct-record' : 'incorrect-record'}">
+                            ${record.is_correct ? '정답' : '오답'}
+                        </td>
+                        <td>레벨 ${record.level}</td>
+                        <td>${record.timestamp ? record.timestamp.substring(11, 19) : '-'}</td>
+                    `;
+                    recordsBody.appendChild(row);
+                });
+                recordsTable.style.display = 'table';
+            } else {
+                recordsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">해당 날짜에 기록이 없습니다.</td></tr>';
+                recordsTable.style.display = 'table';
+            }
+        } catch (error) {
+            alert('기록 조회에 실패했습니다.');
+            console.error('Error:', error);
+        }
+    }
+
+    // 학생별 기록 보기
+    async function viewUserRecords(userId, username) {
+        console.log('기록 조회 시작:', userId, username);
+        
+        try {
+            const statsResponse = await fetch(`/admin/user-stats/${userId}`);
+            const statsData = await statsResponse.json();
+            console.log('통계 데이터:', statsData);
+            
+            const recordsResponse = await fetch(`/admin/user-records/${userId}?page=1&limit=50`);
+            const recordsData = await recordsResponse.json();
+            console.log('기록 데이터:', recordsData);
+            
+            if (recordsData.success && recordsData.records) {
+                showUserRecordsModal(username, statsData.stats, recordsData);
+            } else {
+                alert('해당 사용자의 기록이 없습니다.');
+            }
+        } catch (error) {
+            console.error('학생 기록 조회 오류:', error);
+            alert('기록을 불러오는데 실패했습니다.');
+        }
+    }
+
+    function showUserRecordsModal(username, stats, recordsData) {
+        const records = recordsData.records;
+        const totalRecords = recordsData.totalRecords || records.length;
+        
+        const modalHtml = `
+            <div class="user-records-modal" id="userRecordsModal">
+                <div class="user-records-content">
+                    <h2>${username}의 훈련 기록 (총 ${totalRecords}개)</h2>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number">${stats.totalAttempts}</div>
+                            <div class="stat-label">총 훈련 횟수</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${stats.accuracy}%</div>
+                            <div class="stat-label">정답률</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${stats.correctAnswers}</div>
+                            <div class="stat-label">정답 횟수</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${stats.recentWeek}</div>
+                            <div class="stat-label">최근 7일</div>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <div class="stat-number">${stats.accuracy}%</div>
-                        <div class="stat-label">정답률</div>
+                    
+                    <h3>훈련 기록</h3>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <table class="records-table">
+                            <thead>
+                                <tr>
+                                    <th>날짜</th>
+                                    <th>실제 횟수</th>
+                                    <th>답변</th>
+                                    <th>결과</th>
+                                    <th>레벨</th>
+                                    <th>난이도</th>
+                                    <th>시간</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${records.map(record => `
+                                    <tr>
+                                        <td>${record.date}</td>
+                                        <td>${record.actual_count}</td>
+                                        <td>${record.user_answer}</td>
+                                        <td class="${record.is_correct ? 'correct-record' : 'incorrect-record'}">
+                                            ${record.is_correct ? '정답' : '오답'}
+                                        </td>
+                                        <td>레벨 ${record.level}</td>
+                                        <td>${record.difficulty_range || '-'}</td>
+                                        <td>${record.timestamp ? record.timestamp.substring(11, 19) : '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="stat-item">
-                        <div class="stat-number">${stats.correctAnswers}</div>
-                        <div class="stat-label">정답 횟수</div>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button class="modal-button cancel-btn" onclick="closeUserRecordsModal()">닫기</button>
                     </div>
-                    <div class="stat-item">
-                        <div class="stat-number">${stats.recentWeek}</div>
-                        <div class="stat-label">최근 7일</div>
-                    </div>
-                </div>
-                
-                <h3>최근 훈련 기록 (30개)</h3>
-                <table class="records-table">
-                    <thead>
-                        <tr>
-                            <th>날짜</th>
-                            <th>실제 횟수</th>
-                            <th>답변</th>
-                            <th>결과</th>
-                            <th>레벨</th>
-                            <th>난이도</th>
-                            <th>시간</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${records.map(record => `
-                            <tr>
-                                <td>${record.date}</td>
-                                <td>${record.actual_count}</td>
-                                <td>${record.user_answer}</td>
-                                <td class="${record.is_correct ? 'correct-record' : 'incorrect-record'}">
-                                    ${record.is_correct ? '정답' : '오답'}
-                                </td>
-                                <td>레벨 ${record.level}</td>
-                                <td>${record.difficulty_range || '-'}</td>
-                                <td>${record.timestamp.substring(11, 19)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                
-                <div style="text-align: center; margin-top: 20px;">
-                    <button class="modal-button cancel-btn" onclick="closeUserRecordsModal()">닫기</button>
                 </div>
             </div>
-        </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    document.getElementById('userRecordsModal').style.display = 'block';
-}
-
-function closeUserRecordsModal() {
-    const modal = document.getElementById('userRecordsModal');
-    if (modal) {
-        modal.remove();
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.getElementById('userRecordsModal').style.display = 'block';
     }
-}
-        });
-    </script>
+
+    function closeUserRecordsModal() {
+        const modal = document.getElementById('userRecordsModal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+
+    // Close modals when clicking outside
+    window.onclick = function(event) {
+        const passwordModal = document.getElementById('passwordModal');
+        const deleteModal = document.getElementById('deleteModal');
+        const userRecordsModal = document.getElementById('userRecordsModal');
+        
+        if (event.target === passwordModal) {
+            passwordModal.style.display = 'none';
+        }
+        if (event.target === deleteModal) {
+            deleteModal.style.display = 'none';
+        }
+        if (event.target === userRecordsModal) {
+            closeUserRecordsModal();
+        }
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        const userMenu = document.querySelector('.user-menu');
+        if (!userMenu.contains(event.target)) {
+            document.getElementById('dropdown').classList.remove('show');
+        }
+    });
+</script>
 </body>
 </html>
