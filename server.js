@@ -505,33 +505,31 @@ app.get('/admin/records/:date', requireAdmin, async (req, res) => {
 // 새로운 API들 추가 (위 코드 바로 아래에 추가)
 app.get('/admin/user-records/:userId', requireAdmin, async (req, res) => {
     const userId = req.params.userId;
-    const limit = req.query.limit || 50;
-    const date = req.query.date || '';
     
     try {
-        let queryText = `
+        console.log('=== 사용자 기록 조회 시작 ===');
+        console.log('사용자 ID:', userId);
+        
+        // 모든 기록 조회 (간단하게)
+        const result = await query(`
             SELECT tr.*, u.username 
             FROM training_records tr 
             JOIN users u ON tr.user_id = u.id 
             WHERE tr.user_id = $1
-        `;
-        let params = [userId];
+            ORDER BY tr.timestamp DESC
+        `, [userId]);
         
-        if (date) {
-            queryText += ' AND tr.date = $2 ';
-            params.push(date);
-            queryText += ' ORDER BY tr.timestamp DESC LIMIT $3';
-            params.push(parseInt(limit));
-        } else {
-            queryText += ' ORDER BY tr.timestamp DESC LIMIT $2';
-            params.push(parseInt(limit));
-        }
+        console.log('조회된 기록 수:', result.rows.length);
+        console.log('첫 번째 기록:', result.rows[0]);
         
-        const result = await query(queryText, params);
-        res.json({ success: true, records: result.rows });
+        res.json({ 
+            success: true, 
+            records: result.rows,
+            totalRecords: result.rows.length
+        });
     } catch (error) {
         console.error('학생별 기록 조회 오류:', error);
-        res.json({ success: false, records: [] });
+        res.json({ success: false, records: [], totalRecords: 0 });
     }
 });
 
