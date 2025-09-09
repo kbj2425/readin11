@@ -476,18 +476,93 @@ app.post('/admin/toggle-setting', requireAdmin, async (req, res) => {
 
 app.get('/admin/records/:date', requireAdmin, async (req, res) => {
     const date = req.params.date;
+    const searchUser = req.query.user || '';
+    
     try {
-        const result = await query(`
+        let queryText = `
             SELECT tr.*, u.username 
             FROM training_records tr 
             JOIN users u ON tr.user_id = u.id 
-            WHERE tr.date = $1 
-            ORDER BY u.username, tr.timestamp
-        `, [date]);
+            WHERE tr.date = $1
+        `;
+        let params = [date];
+        
+        if (searchUser) {
+            queryText += ' AND u.username ILIKE $2 ';
+            params.push(`%${searchUser}%`);
+        }
+        
+        queryText += ' ORDER BY u.username, tr.timestamp';
+        
+        const result = await query(queryText, params);
         res.json({ records: result.rows });
     } catch (error) {
         console.error('기록 조회 오류:', error);
         res.json({ records: [] });
+    }
+});
+
+// 새로운 API들 추가 (위 코드 바로 아래에 추가)
+app.get('/admin/user-records/:userId', requireAdmin, async (req, res) => {
+    const userId = req.params.userId;
+    const limit = req.query.limit || 50;
+    const date = req.query.date || '';
+    
+    try {
+        let queryText = `
+            SELECT tr.*, u.username 
+            FROM training_records tr 
+            JOIN users u ON tr.user_id = u.id 
+            WHERE tr.user_id = $1
+        `;
+        let params = [userId];
+        
+        if (date) {
+            queryText += ' AND tr.date = $2 ';
+            params.push(date);
+            queryText += ' ORDER BY tr.timestamp DESC LIMIT $3';
+            params.push(parseInt(limit));
+        } else {
+            queryText += ' ORDER BY tr.timestamp DESC LIMIT $2';
+            params.push(parseInt(limit));
+        }
+        
+        const result = await query(queryText, params);
+        res.json({ success: true, records: result.rows });
+    } catch (error) {
+        console.error('학생별 기록 조회 오류:', error);
+        res.json({ success: false, records: [] });
+    }
+});
+
+app.get('/admin/user-stats/:userId', requireAdmin, async (req, res) => {
+    const userId = req.params.userId;
+    
+    try {
+        const totalResult = await query("SELECT COUNT(*) as total FROM training_records WHERE user_id = $1", [userId]);
+        const correctResult = await query("SELECT COUNT(*) as correct FROM training_records WHERE user_id = $1 AND is_correct = true", [userId]);
+        const recentResult = await query(`
+            SELECT COUNT(*) as recent 
+            FROM training_records 
+            WHERE user_id = $1 AND date >= $2
+        `, [userId, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]]);
+        
+        const total = parseInt(totalResult.rows[0].total);
+        const correct = parseInt(correctResult.rows[0].correct);
+        const recent = parseInt(recentResult.rows[0].recent);
+        
+        res.json({
+            success: true,
+            stats: {
+                totalAttempts: total,
+                correctAnswers: correct,
+                accuracy: total > 0 ? Math.round((correct / total) * 100) : 0,
+                recentWeek: recent
+            }
+        });
+    } catch (error) {
+        console.error('학생 통계 조회 오류:', error);
+        res.json({ success: false, stats: null });
     }
 });
 
