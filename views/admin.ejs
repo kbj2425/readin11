@@ -507,8 +507,11 @@
         <div class="admin-section">
             <h2 class="section-title">훈련 기록 조회</h2>
             <div class="records-section">
-                <input type="date" class="date-input" id="recordDate" value="">
-                <button class="view-records-btn" onclick="viewRecords()">기록 조회</button>
+    <div class="records-controls">
+        <input type="date" class="date-input" id="recordDate" value="">
+        <input type="text" class="search-input" id="userSearch" placeholder="학생 이름으로 검색..." style="width: 200px;">
+        <button class="view-records-btn" onclick="viewRecords()">기록 조회</button>
+    </div>
                 
                 <table class="records-table" id="recordsTable">
                     <thead>
