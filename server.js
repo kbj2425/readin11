@@ -558,6 +558,48 @@ app.get('/admin/user-stats/:userId', requireAdmin, async (req, res) => {
                 recentWeek: recent
             }
         });
+        // 참가자별 전체 기록 조회 (날짜별 그룹화)
+app.get('/admin/user-all-records/:userId', requireAdmin, async (req, res) => {
+    const userId = req.params.userId;
+    
+    try {
+        console.log('전체 기록 조회 시작 - 사용자 ID:', userId);
+        
+        // 날짜별로 그룹화된 기록 조회
+        const result = await query(`
+            SELECT 
+                tr.date,
+                COUNT(*) as daily_attempts,
+                SUM(CASE WHEN tr.is_correct THEN 1 ELSE 0 END) as correct_count,
+                ROUND(AVG(tr.actual_count)) as avg_actual_count,
+                tr.level,
+                tr.difficulty_range,
+                array_agg(
+                    json_build_object(
+                        'id', tr.id,
+                        'actual_count', tr.actual_count,
+                        'user_answer', tr.user_answer,
+                        'is_correct', tr.is_correct,
+                        'timestamp', tr.timestamp
+                    ) ORDER BY tr.timestamp
+                ) as records
+            FROM training_records tr 
+            WHERE tr.user_id = $1
+            GROUP BY tr.date, tr.level, tr.difficulty_range
+            ORDER BY tr.date DESC
+        `, [userId]);
+        
+        console.log('조회된 날짜별 기록 수:', result.rows.length);
+        
+        res.json({ 
+            success: true, 
+            dailyRecords: result.rows
+        });
+    } catch (error) {
+        console.error('전체 기록 조회 오류:', error);
+        res.json({ success: false, dailyRecords: [] });
+    }
+});
     } catch (error) {
         console.error('학생 통계 조회 오류:', error);
         res.json({ success: false, stats: null });
