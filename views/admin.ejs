@@ -236,6 +236,70 @@
             background: #c82333;
         }
 
+.view-records-btn {
+    background: #17a2b8;
+    color: white;
+}
+
+.view-records-btn:hover {
+    background: #138496;
+}
+
+.user-records-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+}
+
+.user-records-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 20px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 1000px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-item {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.stat-number {
+    font-size: 2em;
+    font-weight: bold;
+    color: #FFC0CB;
+}
+
+.stat-label {
+    color: #666;
+    margin-top: 5px;
+}
+
+.records-controls {
+    margin-bottom: 20px;
+}
+
+.records-controls input {
+    margin-right: 10px;
+}
+
         .records-section {
             margin-top: 20px;
         }
