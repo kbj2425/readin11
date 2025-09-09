@@ -844,8 +844,11 @@
     }
 
     function showUserRecordsModal(username, stats, recordsData) {
-        const records = recordsData.records;
-        const totalRecords = recordsData.totalRecords || records.length;
+       const records = recordsData.records || [];
+const totalRecords = recordsData.totalRecords || records.length;
+
+console.log('모달에 전달된 기록:', records);
+console.log('기록 개수:', records.length);
         
         const modalHtml = `
             <div class="user-records-modal" id="userRecordsModal">
@@ -885,21 +888,21 @@
                                     <th>시간</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                ${records.map(record => `
-                                    <tr>
-                                        <td>${record.date}</td>
-                                        <td>${record.actual_count}</td>
-                                        <td>${record.user_answer}</td>
-                                        <td class="${record.is_correct ? 'correct-record' : 'incorrect-record'}">
-                                            ${record.is_correct ? '정답' : '오답'}
-                                        </td>
-                                        <td>레벨 ${record.level}</td>
-                                        <td>${record.difficulty_range || '-'}</td>
-                                        <td>${record.timestamp ? record.timestamp.substring(11, 19) : '-'}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
+                           <tbody>
+    ${records.length > 0 ? records.map(record => `
+        <tr>
+            <td>${record.date || '-'}</td>
+            <td>${record.actual_count || '-'}</td>
+            <td>${record.user_answer || '-'}</td>
+            <td class="${record.is_correct ? 'correct-record' : 'incorrect-record'}">
+                ${record.is_correct ? '정답' : '오답'}
+            </td>
+            <td>레벨 ${record.level || '-'}</td>
+            <td>${record.difficulty_range || '-'}</td>
+            <td>${record.timestamp ? record.timestamp.substring(11, 19) : '-'}</td>
+        </tr>
+    `).join('') : '<tr><td colspan="7" style="text-align: center; padding: 20px;">기록이 없습니다.</td></tr>'}
+</tbody>
                         </table>
                     </div>
                     
