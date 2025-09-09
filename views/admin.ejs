@@ -769,16 +769,23 @@
             currentUserId = null;
         }
 
-        async function viewRecords() {
-            const date = document.getElementById('recordDate').value;
-            if (!date) {
-                alert('날짜를 선택해주세요.');
-                return;
-            }
+       async function viewRecords() {
+    const date = document.getElementById('recordDate').value;
+    const userSearch = document.getElementById('userSearch').value;
+    
+    if (!date) {
+        alert('날짜를 선택해주세요.');
+        return;
+    }
 
-            try {
-                const response = await fetch(`/admin/records/${date}`);
-                const result = await response.json();
+    try {
+        let url = `/admin/records/${date}`;
+        if (userSearch) {
+            url += `?user=${encodeURIComponent(userSearch)}`;
+        }
+        
+        const response = await fetch(url);
+        const result = await response.json();
                 
                 const recordsBody = document.getElementById('recordsBody');
                 const recordsTable = document.getElementById('recordsTable');
