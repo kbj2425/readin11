@@ -166,19 +166,20 @@ function getDifficultyRange(level) {
     const days = getDaysSinceStart();
     
     switch(level) {
-        case 1:
+        case 1: // 초급
             const cycle1 = days % 3;
             const base1 = 10 + (cycle1 * 10);
             return { min: base1, max: base1 + 9, range: `${base1}-${base1 + 9}` };
         
-        case 2:
+        case 2: // 중급
             const cycle2 = days % 6;
             const base2 = 10 + (cycle2 * 10);
             return { min: base2, max: base2 + 9, range: `${base2}-${base2 + 9}` };
         
-        case 3:
+        case 3: // 기본 - 16일 주기로 반복
         default:
-            const base3 = 30 + (days * 10);
+            const cycle3 = days % 16;
+            const base3 = 30 + (cycle3 * 10);
             return { min: base3, max: base3 + 9, range: `${base3}-${base3 + 9}` };
     }
 }
