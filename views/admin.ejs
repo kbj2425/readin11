@@ -556,7 +556,6 @@
                       <td>
     <button class="action-button bonus-btn" onclick="giveBonus(<%= user.id %>)">추가 기회</button>
     <button class="action-button change-pwd-btn" onclick="changePassword(<%= user.id %>, '<%= user.username %>')">비밀번호</button>
-    <button class="action-button view-records-btn" onclick="viewUserRecords(<%= user.id %>, '<%= user.username %>')">기록 보기</button>
     <button class="action-button all-records-btn" onclick="viewAllUserRecords(<%= user.id %>, '<%= user.username %>')">전체 기록</button>
     <button class="action-button delete-btn" onclick="deleteUser(<%= user.id %>, '<%= user.username %>')">삭제</button>
 </td>
@@ -693,22 +692,22 @@
             const row = document.createElement('tr');
             row.setAttribute('data-user-id', user.id);
             row.setAttribute('data-username', user.username);
-            row.innerHTML = `
-                <td>${user.username}</td>
-                <td>
-                    <select class="level-select" onchange="updateLevel(${user.id}, this.value)">
-                        <option value="1" ${user.level === 1 ? 'selected' : ''}>레벨 1 (초급)</option>
-                        <option value="2" ${user.level === 2 ? 'selected' : ''}>레벨 2 (중급)</option>
-                        <option value="3" ${user.level === 3 ? 'selected' : ''}>레벨 3 (기본)</option>
-                    </select>
-                </td>
-                <td>
-                    <button class="action-button bonus-btn" onclick="giveBonus(${user.id})">추가 기회</button>
-                    <button class="action-button change-pwd-btn" onclick="changePassword(${user.id}, '${user.username}')">비밀번호</button>
-                    <button class="action-button view-records-btn" onclick="viewUserRecords(${user.id}, '${user.username}')">기록 보기</button>
-                    <button class="action-button delete-btn" onclick="deleteUser(${user.id}, '${user.username}')">삭제</button>
-                </td>
-            `;
+row.innerHTML = `
+    <td>${user.username}</td>
+    <td>
+        <select class="level-select" onchange="updateLevel(${user.id}, this.value)">
+            <option value="1" ${user.level === 1 ? 'selected' : ''}>레벨 1 (초급)</option>
+            <option value="2" ${user.level === 2 ? 'selected' : ''}>레벨 2 (중급)</option>
+            <option value="3" ${user.level === 3 ? 'selected' : ''}>레벨 3 (기본)</option>
+        </select>
+    </td>
+    <td>
+        <button class="action-button bonus-btn" onclick="giveBonus(${user.id})">추가 기회</button>
+        <button class="action-button change-pwd-btn" onclick="changePassword(${user.id}, '${user.username}')">비밀번호</button>
+        <button class="action-button all-records-btn" onclick="viewAllUserRecords(${user.id}, '${user.username}')">전체 기록</button>
+        <button class="action-button delete-btn" onclick="deleteUser(${user.id}, '${user.username}')">삭제</button>
+    </td>
+`;
             tbody.appendChild(row);
         });
     }
