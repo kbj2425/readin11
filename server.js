@@ -114,10 +114,11 @@ async function initializeDatabase() {
         }
 
         // 기본 설정 초기화
-        const defaultSettings = [
-            ['auto_signup', '0', '자동 회원가입 허용 여부'],
-            ['allow_password_change', '1', '참가자 비밀번호 변경 허용 여부']
-        ];
+       const defaultSettings = [
+    ['auto_signup', '0', '자동 회원가입 허용 여부'],
+    ['allow_password_change', '1', '참가자 비밀번호 변경 허용 여부'],
+    ['show_visual_feedback', '1', '훈련 중 시각적 피드백 표시 여부']
+];
 
         for (const [key, value, description] of defaultSettings) {
             await query(`
@@ -332,14 +333,19 @@ app.get('/training', requireAuth, async (req, res) => {
             return;
         }
         
-        const difficultyRange = getDifficultyRange(req.session.level);
-        const actualCount = Math.floor(Math.random() * (difficultyRange.max - difficultyRange.min + 1)) + difficultyRange.min;
-        
-        res.render('training', {
-            username: req.session.username,
-            actualCount,
-            level: req.session.level
-        });
+      const difficultyRange = getDifficultyRange(req.session.level);
+    const actualCount = Math.floor(Math.random() * (difficultyRange.max - difficultyRange.min + 1)) + difficultyRange.min;
+    
+    // 시각적 피드백 설정 조회
+    const visualFeedbackResult = await query("SELECT value FROM settings WHERE key = 'show_visual_feedback'");
+    const showVisualFeedback = visualFeedbackResult.rows.length > 0 ? visualFeedbackResult.rows[0].value === '1' : true;
+    
+    res.render('training', {
+        username: req.session.username,
+        actualCount,
+        level: req.session.level,
+        showVisualFeedback
+    });
     } catch (error) {
         console.error('훈련 페이지 로딩 오류:', error);
         res.status(500).send('서버 오류가 발생했습니다.');
