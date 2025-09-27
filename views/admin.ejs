@@ -524,6 +524,13 @@
                         <span class="slider"></span>
                     </label>
                 </div>
+<div class="setting-item">
+    <span>훈련 중 시각적 피드백 표시</span>
+    <label class="toggle-switch">
+        <input type="checkbox" id="showVisualFeedback" <%= settings.show_visual_feedback === '1' ? 'checked' : '' %> onchange="toggleSetting('show_visual_feedback')">
+        <span class="slider"></span>
+    </label>
+</div>
             </div>
         </div>
 
