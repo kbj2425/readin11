@@ -469,19 +469,27 @@ async function startTraining() {
         status.textContent = `소리를 재생 중입니다 (100 BPM). 집중하세요!`;
         soundViz.style.display = 'block';
         
-        // 시각적 효과
-        soundBar.style.width = '100%';
-        setTimeout(() => {
-            soundBar.style.width = '0%';
-        }, 200);
+     // 설정에 따른 시각적 효과
+const showVisualFeedback = <%= showVisualFeedback %>;
+if (showVisualFeedback) {
+    soundViz.style.display = 'block';
+    soundBar.style.width = '100%';
+    setTimeout(() => {
+        soundBar.style.width = '0%';
+    }, 200);
+} else {
+    soundViz.style.display = 'none';
+}
         
         await audioManager.playSequence(actualCount);
         
         // Training completed
         playButton.textContent = '✓';
         playButton.style.background = '#28a745';
-        status.textContent = '소리 재생이 완료되었습니다. 답변을 입력하세요.';
-        soundViz.style.display = 'none';
+       status.textContent = '소리 재생이 완료되었습니다. 답변을 입력하세요.';
+if (showVisualFeedback) {
+    soundViz.style.display = 'none';
+}
         
         document.getElementById('answerSection').style.display = 'block';
         document.getElementById('answerInput').focus();
