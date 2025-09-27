@@ -565,14 +565,18 @@ app.get('/admin/user-stats/:userId', requireAdmin, async (req, res) => {
                 recentWeek: recent
             }
         });
-        // 참가자별 전체 기록 조회 (날짜별 그룹화)
+    } catch (error) {
+        console.error('학생 통계 조회 오류:', error);
+        res.json({ success: false, stats: null });
+    }
+});
+
 app.get('/admin/user-all-records/:userId', requireAdmin, async (req, res) => {
     const userId = req.params.userId;
     
     try {
         console.log('전체 기록 조회 시작 - 사용자 ID:', userId);
         
-        // 날짜별로 그룹화된 기록 조회
         const result = await query(`
             SELECT 
                 tr.date,
@@ -605,11 +609,6 @@ app.get('/admin/user-all-records/:userId', requireAdmin, async (req, res) => {
     } catch (error) {
         console.error('전체 기록 조회 오류:', error);
         res.json({ success: false, dailyRecords: [] });
-    }
-});
-    } catch (error) {
-        console.error('학생 통계 조회 오류:', error);
-        res.json({ success: false, stats: null });
     }
 });
 
