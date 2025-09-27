@@ -455,71 +455,43 @@ const audioManager = new PrecisionAudioManager();
             }, 300);
         });
 
-        async function startTraining() {
-            if (isPlaying) return;
-            
-            isPlaying = true;
-            const playButton = document.getElementById('playButton');
-            const status = document.getElementById('status');
-            const soundViz = document.getElementById('soundViz');
-            const soundBar = document.getElementById('soundBar');
-            
-            playButton.disabled = true;
-            playButton.textContent = '⏸';
-            status.textContent = `소리를 재생 중입니다 (100 BPM). 집중하세요!`;
-            soundViz.style.display = 'block';
-            currentCount = 0;
-
-            // Create audio context for beep sound
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            
-            for (let i = 0; i < actualCount; i++) {
-                currentCount = i + 1;
-                
-                // Visual feedback (소리만 표시, 횟수는 표시하지 않음)
-                soundBar.style.width = '100%';
-                
-                // Create beep sound
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-                oscillator.type = 'sine';
-                
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + (BEEP_DURATION / 1000));
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + (BEEP_DURATION / 1000));
-                
-                // Wait for beep duration then hide visual
-                await new Promise(resolve => {
-                    setTimeout(() => {
-                        soundBar.style.width = '0%';
-                        resolve();
-                    }, BEEP_DURATION);
-                });
-                
-                // Wait for remaining interval time (100 BPM rhythm)
-                if (i < actualCount - 1) {
-                    await new Promise(resolve => {
-                        setTimeout(resolve, BEAT_INTERVAL - BEEP_DURATION);
-                    });
-                }
-            }
-            
-            // Training completed
-            playButton.textContent = '✓';
-            playButton.style.background = '#28a745';
-            status.textContent = '소리 재생이 완료되었습니다. 답변을 입력하세요.';
-            soundViz.style.display = 'none';
-            
-            document.getElementById('answerSection').style.display = 'block';
-            document.getElementById('answerInput').focus();
-        }
+async function startTraining() {
+    if (audioManager.isPlaying) return;
+    
+    try {
+        const playButton = document.getElementById('playButton');
+        const status = document.getElementById('status');
+        const soundViz = document.getElementById('soundViz');
+        const soundBar = document.getElementById('soundBar');
+        
+        playButton.disabled = true;
+        playButton.textContent = '⏸';
+        status.textContent = `소리를 재생 중입니다 (100 BPM). 집중하세요!`;
+        soundViz.style.display = 'block';
+        
+        // 시각적 효과
+        soundBar.style.width = '100%';
+        setTimeout(() => {
+            soundBar.style.width = '0%';
+        }, 200);
+        
+        await audioManager.playSequence(actualCount);
+        
+        // Training completed
+        playButton.textContent = '✓';
+        playButton.style.background = '#28a745';
+        status.textContent = '소리 재생이 완료되었습니다. 답변을 입력하세요.';
+        soundViz.style.display = 'none';
+        
+        document.getElementById('answerSection').style.display = 'block';
+        document.getElementById('answerInput').focus();
+        
+    } catch (error) {
+        console.error('훈련 시작 실패:', error);
+        document.getElementById('status').textContent = '오디오 재생 실패: ' + error.message;
+        document.getElementById('playButton').disabled = false;
+    }
+}
 
         async function submitAnswer() {
             const answerInput = document.getElementById('answerInput');
