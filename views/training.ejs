@@ -346,14 +346,99 @@
     </div>
 
     <script>
-        const actualCount = <%= actualCount %>;
-        let isPlaying = false;
-        let currentCount = 0;
+       const actualCount = <%= actualCount %>;
+
+// 개선된 오디오 매니저 클래스
+class PrecisionAudioManager {
+    constructor() {
+        this.audioContext = null;
+        this.masterGain = null;
+        this.initialized = false;
+        this.isPlaying = false;
         
-        // 100 BPM = 60000ms / 100 = 600ms 간격
-        const BPM = 100;
-        const BEAT_INTERVAL = 60000 / BPM; // 600ms
-        const BEEP_DURATION = 150; // 비프음 지속시간 (ms)
+        // 고정된 오디오 파라미터
+        this.FREQUENCY = 800;           // Hz
+        this.BEEP_DURATION = 0.15;      // seconds (150ms)
+        this.BPM = 100;
+        this.BEAT_INTERVAL = 60 / this.BPM; // seconds (0.6s)
+        this.ATTACK_TIME = 0.01;        // 빠른 attack
+        this.RELEASE_TIME = 0.05;       // 부드러운 release
+    }
+    
+    async init() {
+        if (this.initialized) return;
+        
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                latencyHint: 'interactive',
+                sampleRate: 44100
+            });
+            
+            this.masterGain = this.audioContext.createGain();
+            this.masterGain.connect(this.audioContext.destination);
+            this.masterGain.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+            
+            if (this.audioContext.state === 'suspended') {
+                await this.audioContext.resume();
+            }
+            
+            this.initialized = true;
+            console.log('오디오 시스템 초기화 완료');
+            
+        } catch (error) {
+            console.error('오디오 초기화 실패:', error);
+            throw new Error('오디오 시스템을 초기화할 수 없습니다.');
+        }
+    }
+    
+    createPreciseBeep(startTime) {
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.masterGain);
+        
+        oscillator.frequency.setValueAtTime(this.FREQUENCY, startTime);
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(0.8, startTime + this.ATTACK_TIME);
+        gainNode.gain.linearRampToValueAtTime(0.8, startTime + this.BEEP_DURATION - this.RELEASE_TIME);
+        gainNode.gain.linearRampToValueAtTime(0, startTime + this.BEEP_DURATION);
+        
+        oscillator.start(startTime);
+        oscillator.stop(startTime + this.BEEP_DURATION);
+        
+        return oscillator;
+    }
+    
+    async playSequence(count) {
+        if (!this.initialized) {
+            await this.init();
+        }
+        
+        if (this.isPlaying) return;
+        this.isPlaying = true;
+        
+        const startTime = this.audioContext.currentTime + 0.1;
+        const totalDuration = (count - 1) * this.BEAT_INTERVAL + this.BEEP_DURATION;
+        
+        // 모든 비프음을 미리 스케줄링
+        for (let i = 0; i < count; i++) {
+            const beepStartTime = startTime + (i * this.BEAT_INTERVAL);
+            this.createPreciseBeep(beepStartTime);
+        }
+        
+        // 완료까지 대기
+        await new Promise(resolve => {
+            setTimeout(resolve, (totalDuration + 0.2) * 1000);
+        });
+        
+        this.isPlaying = false;
+    }
+}
+
+const audioManager = new PrecisionAudioManager();
 
         function toggleDropdown() {
             const dropdown = document.getElementById('dropdown');
