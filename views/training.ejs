@@ -459,13 +459,24 @@ async playSequence(count, onBeep = null) {
 
 async playNumberAudio(number) {
     return new Promise((resolve, reject) => {
-        const audio = new Audio(this.numberAudioUrls[number]);
-        audio.onended = resolve;
-        audio.onerror = () => {
-            console.error(`음성 ${number} 재생 실패`);
+        const audio = new Audio();
+        audio.crossOrigin = "anonymous";
+        audio.src = this.numberAudioUrls[number];
+        
+        audio.onended = () => {
+            console.log(`음성 ${number} 재생 완료`);
             resolve();
         };
-        audio.play().catch(err => {
+        
+        audio.onerror = (e) => {
+            console.error(`음성 ${number} 재생 실패:`, e);
+            console.log('URL:', this.numberAudioUrls[number]);
+            resolve();
+        };
+        
+        audio.play().then(() => {
+            console.log(`음성 ${number} 재생 시작`);
+        }).catch(err => {
             console.error(`음성 ${number} 재생 오류:`, err);
             resolve();
         });
@@ -480,20 +491,24 @@ async playSequenceWithVoice(count, onBeep = null) {
     if (this.isPlaying) return;
     this.isPlaying = true;
     
-    // 1-10까지는 음성으로 재생
+    // 1-10까지는 음성 + 비프음 동시 재생
     for (let i = 1; i <= Math.min(count, 10); i++) {
         if (onBeep) {
             onBeep(i, count);
         }
         
-        await this.playNumberAudio(i);
+        // 음성과 비프음 동시 재생
+        const audioPromise = this.playNumberAudio(i);
+        this.createPreciseBeep(this.audioContext.currentTime);
+        
+        await audioPromise;
         
         if (i < count) {
-            await new Promise(resolve => setTimeout(resolve, this.BEAT_INTERVAL * 1000 - 500));
+            await new Promise(resolve => setTimeout(resolve, this.BEAT_INTERVAL * 1000 - 1000));
         }
     }
     
-    // 11번째부터는 비프음으로 재생
+    // 11번째부터는 비프음만 재생
     if (count > 10) {
         const startTime = this.audioContext.currentTime + 0.1;
         const remainingCount = count - 10;
