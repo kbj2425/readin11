@@ -356,13 +356,26 @@ class PrecisionAudioManager {
         this.initialized = false;
         this.isPlaying = false;
         
-        // 고정된 오디오 파라미터
-        this.FREQUENCY = 800;           // Hz
-        this.BEEP_DURATION = 0.15;      // seconds (150ms)
+        this.FREQUENCY = 800;
+        this.BEEP_DURATION = 0.15;
         this.BPM = 100;
-        this.BEAT_INTERVAL = 60 / this.BPM; // seconds (0.6s)
-        this.ATTACK_TIME = 0.01;        // 빠른 attack
-        this.RELEASE_TIME = 0.05;       // 부드러운 release
+        this.BEAT_INTERVAL = 60 / this.BPM;
+        this.ATTACK_TIME = 0.01;
+        this.RELEASE_TIME = 0.05;
+        
+        // 숫자 음성 파일 URL (Google Drive)
+        this.numberAudioUrls = {
+            1: 'https://drive.google.com/uc?export=download&id=1yyyw1DnzgSTHOpXHbKZ76ZOWiM3oKn1y',
+            2: 'https://drive.google.com/uc?export=download&id=10-B9tH96bZvHQDECJXWPm0l4RGJYrMHr',
+            3: 'https://drive.google.com/uc?export=download&id=1Xv76ejmuZnb6p5BzWbe97ziBWDbKJ1C6',
+            4: 'https://drive.google.com/uc?export=download&id=1LgsgUNSGC9ahOrScDngfloOMsGEtMHRR',
+            5: 'https://drive.google.com/uc?export=download&id=1L20tpnTUzalgXYAv6x8gBMQI56WkE_hy',
+            6: 'https://drive.google.com/uc?export=download&id=1Riqw1_bEWU8CrJxH5uWSH2a-KjrEpR28',
+            7: 'https://drive.google.com/uc?export=download&id=15ZKIeR1uf9ZNM1qSIdByqOvmphJLy_qM',
+            8: 'https://drive.google.com/uc?export=download&id=1lEeB0bR8gUQP7I05ACjjSvjEIdytMv0K',
+            9: 'https://drive.google.com/uc?export=download&id=113LIqHXztV5rVxX3YmRsUy2N6ZI0hEpy',
+            10: 'https://drive.google.com/uc?export=download&id=1Y-kNu8YGl0uLUPAtNa44AAbTnAapO7SF'
+        };
     }
     
     async init() {
@@ -443,6 +456,67 @@ async playSequence(count, onBeep = null) {
     
     this.isPlaying = false;
 }
+
+async playNumberAudio(number) {
+    return new Promise((resolve, reject) => {
+        const audio = new Audio(this.numberAudioUrls[number]);
+        audio.onended = resolve;
+        audio.onerror = () => {
+            console.error(`음성 ${number} 재생 실패`);
+            resolve();
+        };
+        audio.play().catch(err => {
+            console.error(`음성 ${number} 재생 오류:`, err);
+            resolve();
+        });
+    });
+}
+
+async playSequenceWithVoice(count, onBeep = null) {
+    if (!this.initialized) {
+        await this.init();
+    }
+    
+    if (this.isPlaying) return;
+    this.isPlaying = true;
+    
+    // 1-10까지는 음성으로 재생
+    for (let i = 1; i <= Math.min(count, 10); i++) {
+        if (onBeep) {
+            onBeep(i, count);
+        }
+        
+        await this.playNumberAudio(i);
+        
+        if (i < count) {
+            await new Promise(resolve => setTimeout(resolve, this.BEAT_INTERVAL * 1000 - 500));
+        }
+    }
+    
+    // 11번째부터는 비프음으로 재생
+    if (count > 10) {
+        const startTime = this.audioContext.currentTime + 0.1;
+        const remainingCount = count - 10;
+        
+        for (let i = 0; i < remainingCount; i++) {
+            const beepStartTime = startTime + (i * this.BEAT_INTERVAL);
+            this.createPreciseBeep(beepStartTime);
+            
+            if (onBeep) {
+                setTimeout(() => {
+                    onBeep(11 + i, count);
+                }, (i * this.BEAT_INTERVAL * 1000) + 100);
+            }
+        }
+        
+        const totalDuration = (remainingCount - 1) * this.BEAT_INTERVAL + this.BEEP_DURATION;
+        await new Promise(resolve => {
+            setTimeout(resolve, (totalDuration + 0.2) * 1000);
+        });
+    }
+    
+    this.isPlaying = false;
+}
 }
 
 const audioManager = new PrecisionAudioManager();
@@ -474,13 +548,13 @@ async function startTraining() {
         
         playButton.disabled = true;
         playButton.textContent = '⏸';
-        status.textContent = `소리를 재생 중입니다 (100 BPM). 집중하세요!`;
+        status.textContent = `소리를 재생 중입니다 (1-10 음성, 나머지 비프음)`;
         
         if (showVisualFeedback) {
             soundViz.style.display = 'block';
         }
         
-        await audioManager.playSequence(actualCount, showVisualFeedback ? (current, total) => {
+        await audioManager.playSequenceWithVoice(actualCount, showVisualFeedback ? (current, total) => {
             soundBar.style.width = '100%';
             setTimeout(() => {
                 soundBar.style.width = '0%';
