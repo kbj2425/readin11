@@ -492,24 +492,41 @@ async playSequenceWithVoice(count, onBeep = null) {
     if (this.isPlaying) return;
     this.isPlaying = true;
     
-    // 1-10까지는 음성 + 비프음 동시 재생
+    // 1-10까지는 음성 + 비프음 동시 재생 (100 BPM 유지)
     for (let i = 1; i <= Math.min(count, 10); i++) {
+        const startTime = performance.now();
+        
         if (onBeep) {
             onBeep(i, count);
         }
         
         // 음성과 비프음 동시 재생
-        const audioPromise = this.playNumberAudio(i);
-        this.createPreciseBeep(this.audioContext.currentTime);
+        const audioContext = this.audioContext;
+        const beepTime = audioContext.currentTime;
+        this.createPreciseBeep(beepTime);
         
-        await audioPromise;
+        const audio = new Audio(this.numberAudioUrls[i]);
+        audio.crossOrigin = "anonymous";
+        const playPromise = audio.play();
         
-        if (i < count) {
-            await new Promise(resolve => setTimeout(resolve, this.BEAT_INTERVAL * 1000 - 1000));
+        // 정확히 600ms (100 BPM) 대기
+        if (i < Math.min(count, 10)) {
+            const elapsed = performance.now() - startTime;
+            const waitTime = Math.max(0, (this.BEAT_INTERVAL * 1000) - elapsed);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        } else if (count > 10) {
+            // 10번과 11번 사이도 정확히 600ms
+            const elapsed = performance.now() - startTime;
+            const waitTime = Math.max(0, (this.BEAT_INTERVAL * 1000) - elapsed);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        } else {
+            // 마지막 음성이 끝날 때까지 대기
+            await playPromise.catch(() => {});
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
     }
     
-    // 11번째부터는 비프음만 재생
+    // 11번째부터는 비프음만 재생 (100 BPM 유지)
     if (count > 10) {
         const startTime = this.audioContext.currentTime + 0.1;
         const remainingCount = count - 10;
