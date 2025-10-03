@@ -364,18 +364,19 @@ class PrecisionAudioManager {
         this.RELEASE_TIME = 0.05;
         
         // 숫자 음성 파일 URL (Google Drive)
-        this.numberAudioUrls = {
-            1: 'https://drive.google.com/uc?export=download&id=1yyyw1DnzgSTHOpXHbKZ76ZOWiM3oKn1y',
-            2: 'https://drive.google.com/uc?export=download&id=10-B9tH96bZvHQDECJXWPm0l4RGJYrMHr',
-            3: 'https://drive.google.com/uc?export=download&id=1Xv76ejmuZnb6p5BzWbe97ziBWDbKJ1C6',
-            4: 'https://drive.google.com/uc?export=download&id=1LgsgUNSGC9ahOrScDngfloOMsGEtMHRR',
-            5: 'https://drive.google.com/uc?export=download&id=1L20tpnTUzalgXYAv6x8gBMQI56WkE_hy',
-            6: 'https://drive.google.com/uc?export=download&id=1Riqw1_bEWU8CrJxH5uWSH2a-KjrEpR28',
-            7: 'https://drive.google.com/uc?export=download&id=15ZKIeR1uf9ZNM1qSIdByqOvmphJLy_qM',
-            8: 'https://drive.google.com/uc?export=download&id=1lEeB0bR8gUQP7I05ACjjSvjEIdytMv0K',
-            9: 'https://drive.google.com/uc?export=download&id=113LIqHXztV5rVxX3YmRsUy2N6ZI0hEpy',
-            10: 'https://drive.google.com/uc?export=download&id=1Y-kNu8YGl0uLUPAtNa44AAbTnAapO7SF'
-        };
+       // 숫자 음성 파일 URL (로컬 파일)
+this.numberAudioUrls = {
+    1: '/sounds/1.mp3',
+    2: '/sounds/2.mp3',
+    3: '/sounds/3.mp3',
+    4: '/sounds/4.mp3',
+    5: '/sounds/5.mp3',
+    6: '/sounds/6.mp3',
+    7: '/sounds/7.mp3',
+    8: '/sounds/8.mp3',
+    9: '/sounds/9.mp3',
+    10: '/sounds/10.mp3'
+};
     }
     
     async init() {
