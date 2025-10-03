@@ -412,30 +412,37 @@ class PrecisionAudioManager {
         return oscillator;
     }
     
-    async playSequence(count) {
-        if (!this.initialized) {
-            await this.init();
-        }
-        
-        if (this.isPlaying) return;
-        this.isPlaying = true;
-        
-        const startTime = this.audioContext.currentTime + 0.1;
-        const totalDuration = (count - 1) * this.BEAT_INTERVAL + this.BEEP_DURATION;
-        
-        // 모든 비프음을 미리 스케줄링
-        for (let i = 0; i < count; i++) {
-            const beepStartTime = startTime + (i * this.BEAT_INTERVAL);
-            this.createPreciseBeep(beepStartTime);
-        }
-        
-        // 완료까지 대기
-        await new Promise(resolve => {
-            setTimeout(resolve, (totalDuration + 0.2) * 1000);
-        });
-        
-        this.isPlaying = false;
+async playSequence(count, onBeep = null) {
+    if (!this.initialized) {
+        await this.init();
     }
+    
+    if (this.isPlaying) return;
+    this.isPlaying = true;
+    
+    const startTime = this.audioContext.currentTime + 0.1;
+    const totalDuration = (count - 1) * this.BEAT_INTERVAL + this.BEEP_DURATION;
+    
+    // 모든 비프음을 미리 스케줄링
+    for (let i = 0; i < count; i++) {
+        const beepStartTime = startTime + (i * this.BEAT_INTERVAL);
+        this.createPreciseBeep(beepStartTime);
+        
+        // 각 비프음마다 시각적 피드백 콜백 호출
+        if (onBeep) {
+            setTimeout(() => {
+                onBeep(i + 1, count);
+            }, (i * this.BEAT_INTERVAL * 1000) + 100);
+        }
+    }
+    
+    // 완료까지 대기
+    await new Promise(resolve => {
+        setTimeout(resolve, (totalDuration + 0.2) * 1000);
+    });
+    
+    this.isPlaying = false;
+}
 }
 
 const audioManager = new PrecisionAudioManager();
@@ -463,33 +470,30 @@ async function startTraining() {
         const status = document.getElementById('status');
         const soundViz = document.getElementById('soundViz');
         const soundBar = document.getElementById('soundBar');
+        const showVisualFeedback = <%= showVisualFeedback %>;
         
         playButton.disabled = true;
         playButton.textContent = '⏸';
         status.textContent = `소리를 재생 중입니다 (100 BPM). 집중하세요!`;
-        soundViz.style.display = 'block';
         
-     // 설정에 따른 시각적 효과
-const showVisualFeedback = <%= showVisualFeedback %>;
-if (showVisualFeedback) {
-    soundViz.style.display = 'block';
-    soundBar.style.width = '100%';
-    setTimeout(() => {
-        soundBar.style.width = '0%';
-    }, 200);
-} else {
-    soundViz.style.display = 'none';
-}
+        if (showVisualFeedback) {
+            soundViz.style.display = 'block';
+        }
         
-        await audioManager.playSequence(actualCount);
+        await audioManager.playSequence(actualCount, showVisualFeedback ? (current, total) => {
+            soundBar.style.width = '100%';
+            setTimeout(() => {
+                soundBar.style.width = '0%';
+            }, 150);
+        } : null);
         
-        // Training completed
         playButton.textContent = '✓';
         playButton.style.background = '#28a745';
-       status.textContent = '소리 재생이 완료되었습니다. 답변을 입력하세요.';
-if (showVisualFeedback) {
-    soundViz.style.display = 'none';
-}
+        status.textContent = '소리 재생이 완료되었습니다. 답변을 입력하세요.';
+        
+        if (showVisualFeedback) {
+            soundViz.style.display = 'none';
+        }
         
         document.getElementById('answerSection').style.display = 'block';
         document.getElementById('answerInput').focus();
