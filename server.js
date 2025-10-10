@@ -3,25 +3,36 @@ const session = require('express-session');
 const bcrypt = require('bcrypt');
 const bodyParser = require('body-parser');
 const path = require('path');
-const { Pool } = require('pg');
+const Database = require('better-sqlite3');
+const fetch = require('node-fetch');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// PostgreSQL 연결
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// SQLite 데이터베이스 연결
+const db = new Database('readin.db');
+db.pragma('journal_mode = WAL');
 
 // 쿼리 헬퍼 함수
-async function query(text, params = []) {
-    const client = await pool.connect();
+function query(text, params = []) {
     try {
-        const result = await client.query(text, params);
-        return result;
-    } finally {
-        client.release();
+        if (text.trim().toUpperCase().startsWith('SELECT')) {
+            const stmt = db.prepare(text);
+            const rows = stmt.all(...params);
+            return { rows };
+        } else if (text.trim().toUpperCase().startsWith('INSERT') && text.includes('RETURNING')) {
+            const cleanText = text.replace(/RETURNING\s+\w+/i, '');
+            const stmt = db.prepare(cleanText);
+            const info = stmt.run(...params);
+            return { rows: [{ id: info.lastInsertRowid }] };
+        } else {
+            const stmt = db.prepare(text);
+            const info = stmt.run(...params);
+            return { rows: [], rowCount: info.changes };
+        }
+    } catch (error) {
+        console.error('Query error:', error);
+        throw error;
     }
 }
 
@@ -42,22 +53,22 @@ app.use(session({
 }));
 
 // 데이터베이스 초기화
-async function initializeDatabase() {
+function initializeDatabase() {
     try {
-        console.log('🔧 PostgreSQL 테이블 초기화 시작...');
+        console.log('🔧 SQLite 테이블 초기화 시작...');
 
         // Users table
-        await query(`
+        query(`
             CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                username VARCHAR(255) UNIQUE NOT NULL,
-                password VARCHAR(255) NOT NULL,
-                is_admin BOOLEAN DEFAULT false,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                is_admin INTEGER DEFAULT 0,
                 level INTEGER DEFAULT 3,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_login TIMESTAMP,
-                status VARCHAR(50) DEFAULT 'active'
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                last_login TEXT,
+                status TEXT DEFAULT 'active'
             )
         `);
 
@@ -118,17 +129,75 @@ async function initializeDatabase() {
     ['auto_signup', '0', '자동 회원가입 허용 여부'],
     ['allow_password_change', '1', '참가자 비밀번호 변경 허용 여부'],
     ['show_visual_feedback', '1', '훈련 중 시각적 피드백 표시 여부']
-];
+];// Training records table
+        query(`
+            CREATE TABLE IF NOT EXISTS training_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                actual_count INTEGER NOT NULL,
+                user_answer INTEGER NOT NULL,
+                is_correct INTEGER NOT NULL,
+                level INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                difficulty_range TEXT,
+                bpm INTEGER DEFAULT 100,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+        // Settings table
+        query(`
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                description TEXT,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_by TEXT
+            )
+        `);
+
+        // Daily attempts table
+        query(`
+            CREATE TABLE IF NOT EXISTS daily_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                attempts INTEGER DEFAULT 0,
+                bonus_attempts INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, date),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+        // 관리자 계정 생성
+        const adminCheck = query("SELECT * FROM users WHERE username = 'readin'");
+        if (adminCheck.rows.length === 0) {
+            const hash = bcrypt.hashSync('admin123', 10);
+            query(`
+                INSERT INTO users (username, password, is_admin, level, status) 
+                VALUES (?, ?, 1, 3, 'active')
+            `, ['readin', hash]);
+            console.log('👑 관리자 계정 생성 완료: readin / admin123');
+        }
+
+        // 기본 설정 초기화
+        const defaultSettings = [
+            ['auto_signup', '0', '자동 회원가입 허용 여부'],
+            ['allow_password_change', '1', '참가자 비밀번호 변경 허용 여부'],
+            ['show_visual_feedback', '1', '훈련 중 시각적 피드백 표시 여부']
+        ];
 
         for (const [key, value, description] of defaultSettings) {
-            await query(`
-                INSERT INTO settings (key, value, description, updated_by) 
-                VALUES ($1, $2, $3, 'system') 
-                ON CONFLICT (key) DO NOTHING
+            query(`
+                INSERT OR IGNORE INTO settings (key, value, description, updated_by) 
+                VALUES (?, ?, ?, 'system')
             `, [key, value, description]);
         }
 
-        console.log('🎉 PostgreSQL 데이터베이스 초기화 완료!');
+        console.log('🎉 SQLite 데이터베이스 초기화 완료!');
     } catch (error) {
         console.error('❌ 데이터베이스 초기화 실패:', error);
         process.exit(1);
@@ -719,9 +788,18 @@ process.on('SIGINT', async () => {
     process.exit(0);
 });
 
+// Health check 라우트
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'OK', 
+        timestamp: getKSTTimestamp(),
+        uptime: process.uptime()
+    });
+});
+
 // 데이터베이스 초기화 및 서버 시작
-initializeDatabase().then(() => {
-    app.listen(PORT, () => {
+initializeDatabase();
+app.listen(PORT, () => {
         console.log(`\n🚀 === READIN 집중력 훈련 서버 시작 === 🚀`);
         console.log(`📡 서버 포트: ${PORT}`);
         console.log(`🕐 현재 KST 시간: ${getKSTTimestamp()}`);
@@ -734,10 +812,21 @@ initializeDatabase().then(() => {
         console.log(`🐘 PostgreSQL 데이터베이스 사용`);
         console.log(`👑 관리자 계정: readin / admin123`);
         console.log(`🎵 소리 재생 속도: 100 BPM`);
-        console.log(`🔒 모든 데이터가 PostgreSQL에 영구 저장됩니다`);
+    console.log(`🔒 모든 데이터가 SQLite에 저장됩니다 (readin.db)`);
         console.log(`===============================================\n`);
+        
+        // Keep-Alive 시스템 (10분마다 자체 ping)
+        const selfPing = () => {
+            const url = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+            fetch(`${url}/health`)
+                .then(res => res.json())
+                .then(data => console.log(`✅ Keep-Alive: ${data.timestamp}`))
+                .catch(err => console.log(`⚠️ Keep-Alive 실패: ${err.message}`));
+        };
+        
+        setInterval(selfPing, 10 * 60 * 1000); // 10분마다
+        console.log('⏰ Keep-Alive 시스템 활성화 (10분 간격)\n');
     });
-}).catch(error => {
     console.error('서버 시작 실패:', error);
     process.exit(1);
 });
