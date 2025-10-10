@@ -20,12 +20,5 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "keywords": [
-    "education",
-    "concentration",
-    "training"
-  ],
-  "author": "READIN",
-  "license": "MIT"
+  }
 }
