@@ -3,14 +3,226 @@ const session = require('express-session');
 const bcrypt = require('bcrypt');
 const bodyParser = require('body-parser');
 const path = require('path');
-const Database = require('better-sqlite3');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// SQLite 데이터베이스 연결
-const db = new Database('readin.db');
-db.pragma('journal_mode = WAL');
+// 메모리 기반 데이터 저장소 (서버 재시작시 초기화됨)
+const memoryDB = {
+    users: [],
+    trainingRecords: [],
+    dailyAttempts: [],
+    settings: []
+};
+
+let userIdCounter = 1;
+let recordIdCounter = 1;
+let attemptIdCounter = 1;
+
+// 쿼리 헬퍼 함수 (메모리 DB용)
+async function query(text, params = []) {
+    // SELECT 쿼리 시뮬레이션
+    if (text.includes('SELECT') && text.includes('FROM users')) {
+        if (text.includes("username = $1") || text.includes("username = ?")) {
+            const user = memoryDB.users.find(u => u.username === params[0]);
+            return { rows: user ? [user] : [] };
+        }
+        if (text.includes('is_admin = false') || text.includes('is_admin = 0')) {
+            return { rows: memoryDB.users.filter(u => !u.is_admin) };
+        }
+        if (text.includes('WHERE id = $1') || text.includes('WHERE id = ?')) {
+            const user = memoryDB.users.find(u => u.id === params[0]);
+            return { rows: user ? [user] : [] };
+        }
+        if (text.includes('username ILIKE') || text.includes('username LIKE')) {
+            const searchTerm = params[0].replace(/%/g, '');
+            return { rows: memoryDB.users.filter(u => !u.is_admin && u.username.toLowerCase().includes(searchTerm.toLowerCase())) };
+        }
+    }
+    
+    if (text.includes('SELECT') && text.includes('FROM settings')) {
+        if (text.includes('WHERE key')) {
+            const key = params[0];
+            const setting = memoryDB.settings.find(s => s.key === key);
+            return { rows: setting ? [setting] : [] };
+        }
+        return { rows: memoryDB.settings };
+    }
+    
+    if (text.includes('SELECT') && text.includes('FROM daily_attempts')) {
+        const attempt = memoryDB.dailyAttempts.find(a => a.user_id === params[0] && a.date === params[1]);
+        return { rows: attempt ? [attempt] : [] };
+    }
+    
+    if (text.includes('SELECT') && text.includes('FROM training_records')) {
+        if (text.includes('JOIN users')) {
+            // 날짜별 조회
+            if (text.includes('WHERE tr.date')) {
+                const date = params[0];
+                const searchUser = params[1] || '';
+                let records = memoryDB.trainingRecords.filter(r => r.date === date);
+                
+                if (searchUser) {
+                    records = records.filter(r => {
+                        const user = memoryDB.users.find(u => u.id === r.user_id);
+                        return user && user.username.toLowerCase().includes(searchUser.toLowerCase());
+                    });
+                }
+                
+                return { rows: records.map(r => {
+                    const user = memoryDB.users.find(u => u.id === r.user_id);
+                    return { ...r, username: user ? user.username : 'Unknown' };
+                }) };
+            }
+            // 사용자별 조회
+            if (text.includes('WHERE tr.user_id')) {
+                const records = memoryDB.trainingRecords.filter(r => r.user_id === params[0]);
+                return { rows: records.map(r => {
+                    const user = memoryDB.users.find(u => u.id === r.user_id);
+                    return { ...r, username: user ? user.username : 'Unknown' };
+                }) };
+            }
+        }
+        
+        // 기본 조회
+        if (text.includes('WHERE user_id')) {
+            let records = memoryDB.trainingRecords.filter(r => r.user_id === params[0]);
+            if (text.includes('LIMIT')) {
+                records = records.slice(0, 50);
+            }
+            return { rows: records };
+        }
+        
+        // COUNT 쿼리
+        if (text.includes('COUNT(*)')) {
+            if (text.includes('is_correct')) {
+                const count = memoryDB.trainingRecords.filter(r => r.user_id === params[0] && r.is_correct).length;
+                return { rows: [{ correct: count }] };
+            }
+            if (text.includes('date >=')) {
+                const count = memoryDB.trainingRecords.filter(r => r.user_id === params[0] && r.date >= params[1]).length;
+                return { rows: [{ recent: count }] };
+            }
+            const count = memoryDB.trainingRecords.filter(r => r.user_id === params[0]).length;
+            return { rows: [{ total: count }] };
+        }
+    }
+    
+    // INSERT 쿼리 시뮬레이션
+    if (text.includes('INSERT INTO users')) {
+        const newUser = {
+            id: userIdCounter++,
+            username: params[0],
+            password: params[1],
+            is_admin: params.length > 2 && (params[2] === true || params[2] === 1),
+            level: 3,
+            status: 'active',
+            created_at: new Date().toISOString(),
+            last_login: null
+        };
+        memoryDB.users.push(newUser);
+        return { rows: [{ id: newUser.id }] };
+    }
+    
+    if (text.includes('INSERT INTO training_records')) {
+        const newRecord = {
+            id: recordIdCounter++,
+            user_id: params[0],
+            actual_count: params[1],
+            user_answer: params[2],
+            is_correct: params[3],
+            level: params[4],
+            date: params[5],
+            timestamp: params[6],
+            difficulty_range: params[7],
+            bpm: params[8] || 100
+        };
+        memoryDB.trainingRecords.push(newRecord);
+        return { rows: [] };
+    }
+    
+    if (text.includes('INSERT INTO daily_attempts')) {
+        const newAttempt = {
+            id: attemptIdCounter++,
+            user_id: params[0],
+            date: params[1],
+            attempts: params[2] === undefined ? 1 : params[2],
+            bonus_attempts: params.length > 2 ? params[2] : 0
+        };
+        memoryDB.dailyAttempts.push(newAttempt);
+        return { rows: [] };
+    }
+    
+    if (text.includes('INSERT') && text.includes('settings')) {
+        const existing = memoryDB.settings.find(s => s.key === params[0]);
+        if (!existing) {
+            const newSetting = {
+                key: params[0],
+                value: params[1],
+                description: params[2],
+                updated_by: params[3] || 'system'
+            };
+            memoryDB.settings.push(newSetting);
+        }
+        return { rows: [] };
+    }
+    
+    // UPDATE 쿼리 시뮬레이션
+    if (text.includes('UPDATE users')) {
+        if (text.includes('last_login')) {
+            const user = memoryDB.users.find(u => u.id === params[0]);
+            if (user) user.last_login = new Date().toISOString();
+        }
+        if (text.includes('SET level')) {
+            const user = memoryDB.users.find(u => u.id === params[1]);
+            if (user) user.level = params[0];
+        }
+        if (text.includes('SET password')) {
+            const user = memoryDB.users.find(u => u.id === params[1]);
+            if (user) user.password = params[0];
+        }
+        return { rows: [] };
+    }
+    
+    if (text.includes('UPDATE daily_attempts')) {
+        if (text.includes('SET attempts')) {
+            const attempt = memoryDB.dailyAttempts.find(a => a.user_id === params[0] && a.date === params[1]);
+            if (attempt) attempt.attempts++;
+        }
+        if (text.includes('bonus_attempts')) {
+            const attempt = memoryDB.dailyAttempts.find(a => a.user_id === params[0] && a.date === params[1]);
+            if (attempt) attempt.bonus_attempts++;
+        }
+        return { rows: [] };
+    }
+    
+    if (text.includes('UPDATE settings')) {
+        const setting = memoryDB.settings.find(s => s.key === params[2]);
+        if (setting) {
+            setting.value = params[0];
+            setting.updated_by = params[1];
+        }
+        return { rows: [] };
+    }
+    
+    // DELETE 쿼리 시뮬레이션
+    if (text.includes('DELETE FROM training_records')) {
+        memoryDB.trainingRecords = memoryDB.trainingRecords.filter(r => r.user_id !== params[0]);
+        return { rows: [] };
+    }
+    
+    if (text.includes('DELETE FROM daily_attempts')) {
+        memoryDB.dailyAttempts = memoryDB.dailyAttempts.filter(a => a.user_id !== params[0]);
+        return { rows: [] };
+    }
+    
+    if (text.includes('DELETE FROM users')) {
+        memoryDB.users = memoryDB.users.filter(u => u.id !== params[0]);
+        return { rows: [] };
+    }
+    
+    return { rows: [] };
+}
 
 // Middleware
 app.set('view engine', 'ejs');
@@ -29,96 +241,35 @@ app.use(session({
 }));
 
 // 데이터베이스 초기화
-function initializeDatabase() {
+async function initializeDatabase() {
     try {
-        console.log('🔧 SQLite 테이블 초기화 시작...');
-
-        // Users table
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                is_admin INTEGER DEFAULT 0,
-                level INTEGER DEFAULT 3,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                last_login TEXT,
-                status TEXT DEFAULT 'active'
-            )
-        `);
-
-        // Training records table
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS training_records (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                actual_count INTEGER NOT NULL,
-                user_answer INTEGER NOT NULL,
-                is_correct INTEGER NOT NULL,
-                level INTEGER NOT NULL,
-                date TEXT NOT NULL,
-                timestamp TEXT NOT NULL,
-                difficulty_range TEXT,
-                bpm INTEGER DEFAULT 100,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-        `);
-
-        // Settings table
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS settings (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL,
-                description TEXT,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_by TEXT
-            )
-        `);
-
-        // Daily attempts table
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS daily_attempts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                date TEXT NOT NULL,
-                attempts INTEGER DEFAULT 0,
-                bonus_attempts INTEGER DEFAULT 0,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, date),
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-        `);
+        console.log('🔧 메모리 데이터베이스 초기화 시작...');
+        console.log('⚠️ 경고: 서버 재시작시 모든 데이터가 삭제됩니다!');
 
         // 관리자 계정 생성
-        const adminCheck = db.prepare("SELECT * FROM users WHERE username = ?").get('readin');
-        if (!adminCheck) {
-            const hash = bcrypt.hashSync('admin123', 10);
-            db.prepare(`
-                INSERT INTO users (username, password, is_admin, level, status) 
-                VALUES (?, ?, 1, 3, 'active')
-            `).run('readin', hash);
-            console.log('👑 관리자 계정 생성 완료: readin / admin123');
-        }
+        const hash = await bcrypt.hash('admin123', 10);
+        memoryDB.users.push({
+            id: userIdCounter++,
+            username: 'readin',
+            password: hash,
+            is_admin: true,
+            level: 3,
+            status: 'active',
+            created_at: new Date().toISOString(),
+            last_login: null
+        });
+        console.log('👑 관리자 계정 생성 완료: readin / admin123');
 
         // 기본 설정 초기화
         const defaultSettings = [
-            ['auto_signup', '0', '자동 회원가입 허용 여부'],
-            ['allow_password_change', '1', '참가자 비밀번호 변경 허용 여부'],
-            ['show_visual_feedback', '1', '훈련 중 시각적 피드백 표시 여부']
+            { key: 'auto_signup', value: '0', description: '자동 회원가입 허용 여부', updated_by: 'system' },
+            { key: 'allow_password_change', value: '1', description: '참가자 비밀번호 변경 허용 여부', updated_by: 'system' },
+            { key: 'show_visual_feedback', value: '1', description: '훈련 중 시각적 피드백 표시 여부', updated_by: 'system' }
         ];
 
-        const insertSetting = db.prepare(`
-            INSERT OR IGNORE INTO settings (key, value, description, updated_by) 
-            VALUES (?, ?, ?, 'system')
-        `);
+        memoryDB.settings = defaultSettings;
 
-        for (const [key, value, description] of defaultSettings) {
-            insertSetting.run(key, value, description);
-        }
-
-        console.log('🎉 SQLite 데이터베이스 초기화 완료!');
+        console.log('🎉 메모리 데이터베이스 초기화 완료!');
     } catch (error) {
         console.error('❌ 데이터베이스 초기화 실패:', error);
         process.exit(1);
@@ -201,12 +352,14 @@ app.get('/health', (req, res) => {
     res.status(200).json({ 
         status: 'OK', 
         timestamp: getKSTTimestamp(),
-        uptime: process.uptime()
+        uptime: Math.floor(process.uptime()),
+        users: memoryDB.users.length,
+        records: memoryDB.trainingRecords.length
     });
 });
 
 // Routes
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
     if (req.session.userId) {
         if (req.session.isAdmin) {
             res.redirect('/admin');
@@ -215,8 +368,8 @@ app.get('/', (req, res) => {
         }
     } else {
         try {
-            const result = db.prepare("SELECT value FROM settings WHERE key = ?").get('auto_signup');
-            const autoSignup = result ? result.value === '1' : false;
+            const result = await query("SELECT value FROM settings WHERE key = $1", ['auto_signup']);
+            const autoSignup = result.rows.length > 0 ? result.rows[0].value === '1' : false;
             res.render('login', { error: null, autoSignup });
         } catch (error) {
             console.error('설정 조회 오류:', error);
@@ -225,44 +378,45 @@ app.get('/', (req, res) => {
     }
 });
 
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     
     try {
-        const user = db.prepare("SELECT * FROM users WHERE username = ? AND status = 'active'").get(username);
+        const result = await query("SELECT * FROM users WHERE username = $1 AND status = 'active'", [username]);
+        const user = result.rows[0];
         
         if (user) {
-            const isValid = bcrypt.compareSync(password, user.password);
+            const isValid = await bcrypt.compare(password, user.password);
             if (isValid) {
                 req.session.userId = user.id;
                 req.session.username = user.username;
-                req.session.isAdmin = user.is_admin === 1;
+                req.session.isAdmin = user.is_admin;
                 req.session.level = user.level;
                 
-                db.prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?").run(user.id);
+                await query("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1", [user.id]);
                 
-                if (user.is_admin === 1) {
+                if (user.is_admin) {
                     res.redirect('/admin');
                 } else {
                     res.redirect('/dashboard');
                 }
             } else {
-                const settingsResult = db.prepare("SELECT value FROM settings WHERE key = ?").get('auto_signup');
-                const autoSignup = settingsResult ? settingsResult.value === '1' : false;
+                const settingsResult = await query("SELECT value FROM settings WHERE key = $1", ['auto_signup']);
+                const autoSignup = settingsResult.rows.length > 0 ? settingsResult.rows[0].value === '1' : false;
                 res.render('login', { error: '비밀번호가 올바르지 않습니다.', autoSignup });
             }
         } else {
-            const settingsResult = db.prepare("SELECT value FROM settings WHERE key = ?").get('auto_signup');
-            const autoSignup = settingsResult ? settingsResult.value === '1' : false;
+            const settingsResult = await query("SELECT value FROM settings WHERE key = $1", ['auto_signup']);
+            const autoSignup = settingsResult.rows.length > 0 ? settingsResult.rows[0].value === '1' : false;
             
             if (autoSignup && password === '123456') {
-                const hash = bcrypt.hashSync(password, 10);
-                const info = db.prepare(`
+                const hash = await bcrypt.hash(password, 10);
+                const insertResult = await query(`
                     INSERT INTO users (username, password, level, status) 
-                    VALUES (?, ?, 3, 'active')
-                `).run(username, hash);
+                    VALUES ($1, $2, 3, 'active') RETURNING id
+                `, [username, hash]);
                 
-                req.session.userId = info.lastInsertRowid;
+                req.session.userId = insertResult.rows[0].id;
                 req.session.username = username;
                 req.session.isAdmin = false;
                 req.session.level = 3;
@@ -278,7 +432,7 @@ app.post('/login', (req, res) => {
     }
 });
 
-app.get('/dashboard', requireAuth, (req, res) => {
+app.get('/dashboard', requireAuth, async (req, res) => {
     if (req.session.isAdmin) {
         res.redirect('/admin');
         return;
@@ -288,12 +442,14 @@ app.get('/dashboard', requireAuth, (req, res) => {
     const userId = req.session.userId;
     
     try {
-        const attempts = db.prepare("SELECT * FROM daily_attempts WHERE user_id = ? AND date = ?").get(userId, today);
+        const attemptsResult = await query("SELECT * FROM daily_attempts WHERE user_id = $1 AND date = $2", [userId, today]);
+        const attempts = attemptsResult.rows[0];
         const totalAttempts = attempts ? attempts.attempts : 0;
         const bonusAttempts = attempts ? attempts.bonus_attempts : 0;
         const remainingAttempts = Math.max(0, 2 + bonusAttempts - totalAttempts);
         
-        const records = db.prepare("SELECT * FROM training_records WHERE user_id = ? ORDER BY timestamp DESC LIMIT 50").all(userId);
+        const recordsResult = await query("SELECT * FROM training_records WHERE user_id = $1 ORDER BY timestamp DESC LIMIT 50", [userId]);
+        const records = recordsResult.rows;
         const difficultyRange = getDifficultyRange(req.session.level);
         
         res.render('dashboard', {
@@ -308,7 +464,7 @@ app.get('/dashboard', requireAuth, (req, res) => {
     }
 });
 
-app.get('/training', requireAuth, (req, res) => {
+app.get('/training', requireAuth, async (req, res) => {
     if (req.session.isAdmin) {
         res.redirect('/admin');
         return;
@@ -318,7 +474,8 @@ app.get('/training', requireAuth, (req, res) => {
     const userId = req.session.userId;
     
     try {
-        const attempts = db.prepare("SELECT * FROM daily_attempts WHERE user_id = ? AND date = ?").get(userId, today);
+        const attemptsResult = await query("SELECT * FROM daily_attempts WHERE user_id = $1 AND date = $2", [userId, today]);
+        const attempts = attemptsResult.rows[0];
         const totalAttempts = attempts ? attempts.attempts : 0;
         const bonusAttempts = attempts ? attempts.bonus_attempts : 0;
         const remainingAttempts = Math.max(0, 2 + bonusAttempts - totalAttempts);
@@ -331,8 +488,8 @@ app.get('/training', requireAuth, (req, res) => {
         const difficultyRange = getDifficultyRange(req.session.level);
         const actualCount = Math.floor(Math.random() * (difficultyRange.max - difficultyRange.min + 1)) + difficultyRange.min;
         
-        const visualFeedbackResult = db.prepare("SELECT value FROM settings WHERE key = ?").get('show_visual_feedback');
-        const showVisualFeedback = visualFeedbackResult ? visualFeedbackResult.value === '1' : true;
+        const visualFeedbackResult = await query("SELECT value FROM settings WHERE key = $1", ['show_visual_feedback']);
+        const showVisualFeedback = visualFeedbackResult.rows.length > 0 ? visualFeedbackResult.rows[0].value === '1' : true;
         
         res.render('training', {
             username: req.session.username,
@@ -346,7 +503,7 @@ app.get('/training', requireAuth, (req, res) => {
     }
 });
 
-app.post('/submit-answer', requireAuth, (req, res) => {
+app.post('/submit-answer', requireAuth, async (req, res) => {
     if (req.session.isAdmin) {
         res.json({ success: false, message: '관리자는 훈련에 참여할 수 없습니다.' });
         return;
@@ -359,7 +516,8 @@ app.post('/submit-answer', requireAuth, (req, res) => {
     const difficultyRange = getDifficultyRange(req.session.level);
     
     try {
-        const attempts = db.prepare("SELECT * FROM daily_attempts WHERE user_id = ? AND date = ?").get(userId, today);
+        const attemptsResult = await query("SELECT * FROM daily_attempts WHERE user_id = $1 AND date = $2", [userId, today]);
+        const attempts = attemptsResult.rows[0];
         const totalAttempts = attempts ? attempts.attempts : 0;
         const bonusAttempts = attempts ? attempts.bonus_attempts : 0;
         const remainingAttempts = Math.max(0, 2 + bonusAttempts - totalAttempts);
@@ -371,15 +529,15 @@ app.post('/submit-answer', requireAuth, (req, res) => {
         
         const isCorrect = isCorrectAnswer(parseInt(actualCount), parseInt(userAnswer));
         
-        db.prepare(`
+        await query(`
             INSERT INTO training_records (user_id, actual_count, user_answer, is_correct, level, date, timestamp, difficulty_range, bpm) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 100)
-        `).run(userId, actualCount, userAnswer, isCorrect ? 1 : 0, req.session.level, today, kstTimestamp, difficultyRange.range);
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, [userId, actualCount, userAnswer, isCorrect, req.session.level, today, kstTimestamp, difficultyRange.range, 100]);
         
         if (attempts) {
-            db.prepare("UPDATE daily_attempts SET attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND date = ?").run(userId, today);
+            await query("UPDATE daily_attempts SET attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND date = $2", [userId, today]);
         } else {
-            db.prepare("INSERT INTO daily_attempts (user_id, date, attempts) VALUES (?, ?, 1)").run(userId, today);
+            await query("INSERT INTO daily_attempts (user_id, date, attempts) VALUES ($1, $2, 1)", [userId, today]);
         }
         
         res.json({
@@ -395,13 +553,14 @@ app.post('/submit-answer', requireAuth, (req, res) => {
     }
 });
 
-app.get('/admin', requireAdmin, (req, res) => {
+app.get('/admin', requireAdmin, async (req, res) => {
     try {
-        const users = db.prepare("SELECT id, username, level, created_at, last_login, status FROM users WHERE is_admin = 0 ORDER BY username").all();
-        const settings = db.prepare("SELECT key, value, description FROM settings ORDER BY key").all();
+        const usersResult = await query("SELECT id, username, level, created_at, last_login, status FROM users WHERE is_admin = false ORDER BY username");
+        const users = usersResult.rows;
         
+        const settingsResult = await query("SELECT key, value, description FROM settings ORDER BY key");
         const settingsObj = {};
-        settings.forEach(setting => {
+        settingsResult.rows.forEach(setting => {
             settingsObj[setting.key] = setting.value;
         });
         
@@ -416,21 +575,21 @@ app.get('/admin', requireAdmin, (req, res) => {
     }
 });
 
-app.post('/admin/search', requireAdmin, (req, res) => {
+app.post('/admin/search', requireAdmin, async (req, res) => {
     const { searchTerm } = req.body;
     try {
-        const users = db.prepare("SELECT id, username, level, created_at, last_login, status FROM users WHERE is_admin = 0 AND username LIKE ? ORDER BY username").all(`%${searchTerm}%`);
-        res.json({ users });
+        const result = await query("SELECT id, username, level, created_at, last_login, status FROM users WHERE is_admin = false AND username ILIKE $1 ORDER BY username", [`%${searchTerm}%`]);
+        res.json({ users: result.rows });
     } catch (error) {
         console.error('사용자 검색 오류:', error);
         res.json({ users: [] });
     }
 });
 
-app.post('/admin/update-level', requireAdmin, (req, res) => {
+app.post('/admin/update-level', requireAdmin, async (req, res) => {
     const { userId, level } = req.body;
     try {
-        db.prepare("UPDATE users SET level = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(level, userId);
+        await query("UPDATE users SET level = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [level, userId]);
         res.json({ success: true });
     } catch (error) {
         console.error('레벨 업데이트 오류:', error);
@@ -438,17 +597,17 @@ app.post('/admin/update-level', requireAdmin, (req, res) => {
     }
 });
 
-app.post('/admin/bonus-attempt', requireAdmin, (req, res) => {
+app.post('/admin/bonus-attempt', requireAdmin, async (req, res) => {
     const { userId } = req.body;
     const today = getTodayKST();
     
     try {
-        const attempts = db.prepare("SELECT * FROM daily_attempts WHERE user_id = ? AND date = ?").get(userId, today);
+        const attemptsResult = await query("SELECT * FROM daily_attempts WHERE user_id = $1 AND date = $2", [userId, today]);
         
-        if (attempts) {
-            db.prepare("UPDATE daily_attempts SET bonus_attempts = bonus_attempts + 1, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND date = ?").run(userId, today);
+        if (attemptsResult.rows.length > 0) {
+            await query("UPDATE daily_attempts SET bonus_attempts = bonus_attempts + 1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND date = $2", [userId, today]);
         } else {
-            db.prepare("INSERT INTO daily_attempts (user_id, date, bonus_attempts) VALUES (?, ?, 1)").run(userId, today);
+            await query("INSERT INTO daily_attempts (user_id, date, bonus_attempts) VALUES ($1, $2, 1)", [userId, today]);
         }
         
         res.json({ success: true });
@@ -458,14 +617,14 @@ app.post('/admin/bonus-attempt', requireAdmin, (req, res) => {
     }
 });
 
-app.post('/admin/toggle-setting', requireAdmin, (req, res) => {
+app.post('/admin/toggle-setting', requireAdmin, async (req, res) => {
     const { key } = req.body;
     try {
-        const result = db.prepare("SELECT value FROM settings WHERE key = ?").get(key);
-        const currentValue = result ? result.value : '0';
+        const result = await query("SELECT value FROM settings WHERE key = $1", [key]);
+        const currentValue = result.rows[0]?.value || '0';
         const newValue = currentValue === '1' ? '0' : '1';
         
-        db.prepare("UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP, updated_by = ? WHERE key = ?").run(newValue, req.session.username, key);
+        await query("UPDATE settings SET value = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE key = $3", [newValue, req.session.username, key]);
         res.json({ success: true, newValue });
     } catch (error) {
         console.error('설정 토글 오류:', error);
@@ -473,50 +632,41 @@ app.post('/admin/toggle-setting', requireAdmin, (req, res) => {
     }
 });
 
-app.get('/admin/records/:date', requireAdmin, (req, res) => {
+app.get('/admin/records/:date', requireAdmin, async (req, res) => {
     const date = req.params.date;
     const searchUser = req.query.user || '';
     
     try {
-        let query = `
+        const result = await query(`
             SELECT tr.*, u.username 
             FROM training_records tr 
             JOIN users u ON tr.user_id = u.id 
-            WHERE tr.date = ?
-        `;
-        let params = [date];
+            WHERE tr.date = $1
+        `, [date, searchUser]);
         
-        if (searchUser) {
-            query += ' AND u.username LIKE ? ';
-            params.push(`%${searchUser}%`);
-        }
-        
-        query += ' ORDER BY u.username, tr.timestamp';
-        
-        const records = db.prepare(query).all(...params);
-        res.json({ records });
+        res.json({ records: result.rows });
     } catch (error) {
         console.error('기록 조회 오류:', error);
         res.json({ records: [] });
     }
 });
 
-app.get('/admin/user-records/:userId', requireAdmin, (req, res) => {
+app.get('/admin/user-records/:userId', requireAdmin, async (req, res) => {
     const userId = req.params.userId;
     
     try {
-        const records = db.prepare(`
+        const result = await query(`
             SELECT tr.*, u.username 
             FROM training_records tr 
             JOIN users u ON tr.user_id = u.id 
-            WHERE tr.user_id = ?
+            WHERE tr.user_id = $1
             ORDER BY tr.timestamp DESC
-        `).all(userId);
+        `, [userId]);
         
         res.json({ 
             success: true, 
-            records,
-            totalRecords: records.length
+            records: result.rows,
+            totalRecords: result.rows.length
         });
     } catch (error) {
         console.error('학생별 기록 조회 오류:', error);
@@ -524,21 +674,22 @@ app.get('/admin/user-records/:userId', requireAdmin, (req, res) => {
     }
 });
 
-app.get('/admin/user-stats/:userId', requireAdmin, (req, res) => {
+app.get('/admin/user-stats/:userId', requireAdmin, async (req, res) => {
     const userId = req.params.userId;
     
     try {
-        const totalResult = db.prepare("SELECT COUNT(*) as total FROM training_records WHERE user_id = ?").get(userId);
-        const correctResult = db.prepare("SELECT COUNT(*) as correct FROM training_records WHERE user_id = ? AND is_correct = 1").get(userId);
-        const recentResult = db.prepare(`
+        const totalResult = await query("SELECT COUNT(*) as total FROM training_records WHERE user_id = $1", [userId]);
+        const correctResult = await query("SELECT COUNT(*) as correct FROM training_records WHERE user_id = $1 AND is_correct = true", [userId]);
+        const recentDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const recentResult = await query(`
             SELECT COUNT(*) as recent 
             FROM training_records 
-            WHERE user_id = ? AND date >= ?
-        `).get(userId, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+            WHERE user_id = $1 AND date >= $2
+        `, [userId, recentDate]);
         
-        const total = totalResult.total;
-        const correct = correctResult.correct;
-        const recent = recentResult.recent;
+        const total = parseInt(totalResult.rows[0].total);
+        const correct = parseInt(correctResult.rows[0].correct);
+        const recent = parseInt(recentResult.rows[0].recent);
         
         res.json({
             success: true,
@@ -555,37 +706,43 @@ app.get('/admin/user-stats/:userId', requireAdmin, (req, res) => {
     }
 });
 
-app.get('/admin/user-all-records/:userId', requireAdmin, (req, res) => {
+app.get('/admin/user-all-records/:userId', requireAdmin, async (req, res) => {
     const userId = req.params.userId;
     
     try {
-        const records = db.prepare(`
-            SELECT 
-                date,
-                level,
-                difficulty_range,
-                COUNT(*) as daily_attempts,
-                SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct_count,
-                ROUND(AVG(actual_count)) as avg_actual_count
-            FROM training_records 
-            WHERE user_id = ?
-            GROUP BY date, level, difficulty_range
-            ORDER BY date DESC
-        `).all(userId);
+        // 날짜별로 그룹화
+        const dateGroups = {};
+        const allRecords = memoryDB.trainingRecords.filter(r => r.user_id === parseInt(userId));
         
-        const dailyRecords = records.map(record => {
-            const details = db.prepare(`
-                SELECT id, actual_count, user_answer, is_correct, timestamp
-                FROM training_records
-                WHERE user_id = ? AND date = ?
-                ORDER BY timestamp
-            `).all(userId, record.date);
+        allRecords.forEach(record => {
+            if (!dateGroups[record.date]) {
+                dateGroups[record.date] = {
+                    date: record.date,
+                    level: record.level,
+                    difficulty_range: record.difficulty_range,
+                    daily_attempts: 0,
+                    correct_count: 0,
+                    total_actual_count: 0,
+                    records: []
+                };
+            }
             
-            return {
-                ...record,
-                records: details
-            };
+            dateGroups[record.date].daily_attempts++;
+            if (record.is_correct) dateGroups[record.date].correct_count++;
+            dateGroups[record.date].total_actual_count += record.actual_count;
+            dateGroups[record.date].records.push({
+                id: record.id,
+                actual_count: record.actual_count,
+                user_answer: record.user_answer,
+                is_correct: record.is_correct,
+                timestamp: record.timestamp
+            });
         });
+        
+        const dailyRecords = Object.values(dateGroups).map(group => ({
+            ...group,
+            avg_actual_count: Math.round(group.total_actual_count / group.daily_attempts)
+        })).sort((a, b) => b.date.localeCompare(a.date));
         
         res.json({ 
             success: true, 
@@ -597,7 +754,7 @@ app.get('/admin/user-all-records/:userId', requireAdmin, (req, res) => {
     }
 });
 
-app.get('/change-password', requireAuth, (req, res) => {
+app.get('/change-password', requireAuth, async (req, res) => {
     if (req.session.isAdmin) {
         res.render('change-password', { 
             username: req.session.username, 
@@ -606,8 +763,8 @@ app.get('/change-password', requireAuth, (req, res) => {
         });
     } else {
         try {
-            const result = db.prepare("SELECT value FROM settings WHERE key = ?").get('allow_password_change');
-            const allowed = result ? result.value === '1' : true;
+            const result = await query("SELECT value FROM settings WHERE key = $1", ['allow_password_change']);
+            const allowed = result.rows.length > 0 ? result.rows[0].value === '1' : true;
             if (allowed) {
                 res.render('change-password', { 
                     username: req.session.username, 
@@ -624,16 +781,17 @@ app.get('/change-password', requireAuth, (req, res) => {
     }
 });
 
-app.post('/change-password', requireAuth, (req, res) => {
+app.post('/change-password', requireAuth, async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     
     try {
-        const user = db.prepare("SELECT password FROM users WHERE id = ?").get(req.session.userId);
+        const result = await query("SELECT password FROM users WHERE id = $1", [req.session.userId]);
+        const user = result.rows[0];
         
-        const isValid = bcrypt.compareSync(currentPassword, user.password);
+        const isValid = await bcrypt.compare(currentPassword, user.password);
         if (isValid) {
-            const hash = bcrypt.hashSync(newPassword, 10);
-            db.prepare("UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(hash, req.session.userId);
+            const hash = await bcrypt.hash(newPassword, 10);
+            await query("UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [hash, req.session.userId]);
             res.redirect(req.session.isAdmin ? '/admin' : '/dashboard');
         } else {
             res.render('change-password', { 
@@ -652,19 +810,19 @@ app.post('/change-password', requireAuth, (req, res) => {
     }
 });
 
-app.post('/admin/delete-user', requireAdmin, (req, res) => {
+app.post('/admin/delete-user', requireAdmin, async (req, res) => {
     const { userId } = req.body;
     
     try {
-        const user = db.prepare("SELECT username FROM users WHERE id = ? AND is_admin = 0").get(userId);
-        if (!user) {
+        const userResult = await query("SELECT username FROM users WHERE id = $1 AND is_admin = false", [userId]);
+        if (userResult.rows.length === 0) {
             res.json({ success: false, message: '사용자를 찾을 수 없습니다.' });
             return;
         }
         
-        db.prepare("DELETE FROM training_records WHERE user_id = ?").run(userId);
-        db.prepare("DELETE FROM daily_attempts WHERE user_id = ?").run(userId);
-        db.prepare("DELETE FROM users WHERE id = ? AND is_admin = 0").run(userId);
+        await query("DELETE FROM training_records WHERE user_id = $1", [userId]);
+        await query("DELETE FROM daily_attempts WHERE user_id = $1", [userId]);
+        await query("DELETE FROM users WHERE id = $1 AND is_admin = false", [userId]);
         
         res.json({ success: true });
     } catch (error) {
@@ -673,12 +831,12 @@ app.post('/admin/delete-user', requireAdmin, (req, res) => {
     }
 });
 
-app.post('/admin/force-change-password', requireAdmin, (req, res) => {
+app.post('/admin/force-change-password', requireAdmin, async (req, res) => {
     const { userId, newPassword } = req.body;
     
     try {
-        const hash = bcrypt.hashSync(newPassword, 10);
-        db.prepare("UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND is_admin = 0").run(hash, userId);
+        const hash = await bcrypt.hash(newPassword, 10);
+        await query("UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND is_admin = false", [hash, userId]);
         res.json({ success: true });
     } catch (error) {
         console.error('강제 비밀번호 변경 오류:', error);
@@ -695,27 +853,49 @@ app.get('/logout', (req, res) => {
     });
 });
 
-// 데이터베이스 초기화 및 서버 시작
-initializeDatabase();
+// 종료 시 정리
+process.on('SIGINT', () => {
+    console.log('\n🛑 서버 종료 중...');
+    console.log('✅ 메모리 데이터 정리됨');
+    process.exit(0);
+});
 
-app.listen(PORT, () => {
-    console.log(`\n🚀 === READIN 집중력 훈련 서버 시작 === 🚀`);
-    console.log(`📡 서버 포트: ${PORT}`);
-    console.log(`🕐 현재 KST 시간: ${getKSTTimestamp()}`);
-    console.log(`📅 오늘 날짜 (KST): ${getTodayKST()}`);
-    
-    const days = getDaysSinceStart();
-    const range = getDifficultyRange(3);
-    console.log(`📊 8월 30일부터 경과일: ${days}일`);
-    console.log(`🎯 현재 기본 레벨 난이도: ${range.range}`);
-    console.log(`💾 SQLite 데이터베이스 사용 (readin.db)`);
-    console.log(`👑 관리자 계정: readin / admin123`);
-    console.log(`🎵 소리 재생 속도: 100 BPM`);
-    console.log(`===============================================\n`);
-    
-    // Keep-Alive 시스템 (외부 서비스 추천)
-    console.log('⚠️ Render 무료 플랜: 15분 비활성시 Sleep 상태');
-    console.log('💡 권장: UptimeRobot 등 외부 모니터링 서비스 사용');
-    console.log('   - https://uptimerobot.com');
-    console.log('   - 5분마다 /health 경로 ping\n');
+// 데이터베이스 초기화 및 서버 시작
+initializeDatabase().then(() => {
+    app.listen(PORT, () => {
+        console.log(`\n🚀 === READIN 집중력 훈련 서버 시작 === 🚀`);
+        console.log(`📡 서버 포트: ${PORT}`);
+        console.log(`🕐 현재 KST 시간: ${getKSTTimestamp()}`);
+        console.log(`📅 오늘 날짜 (KST): ${getTodayKST()}`);
+        
+        const days = getDaysSinceStart();
+        const range = getDifficultyRange(3);
+        console.log(`📊 8월 30일부터 경과일: ${days}일`);
+        console.log(`🎯 현재 기본 레벨 난이도: ${range.range}`);
+        console.log(`💾 메모리 데이터베이스 사용 (서버 재시작시 데이터 삭제)`);
+        console.log(`👑 관리자 계정: readin / admin123`);
+        console.log(`🎵 소리 재생 속도: 100 BPM`);
+        console.log(`===============================================\n`);
+        
+        // Keep-Alive 시스템 (10분마다 자체 ping)
+        setInterval(() => {
+            const url = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+            
+            fetch(`${url}/health`)
+                .then(res => res.json())
+                .then(data => {
+                    console.log(`✅ Keep-Alive: ${data.timestamp} (Uptime: ${data.uptime}초, Users: ${data.users}, Records: ${data.records})`);
+                })
+                .catch(err => {
+                    console.log(`⚠️ Keep-Alive 실패: ${err.message}`);
+                });
+        }, 10 * 60 * 1000); // 10분마다
+        
+        console.log('⏰ Keep-Alive 시스템 활성화 (10분 간격)');
+        console.log('🔄 서버가 자동으로 깨어있는 상태를 유지합니다');
+        console.log('💡 권장: UptimeRobot(https://uptimerobot.com)으로 외부 모니터링 추가\n');
+    });
+}).catch(error => {
+    console.error('서버 시작 실패:', error);
+    process.exit(1);
 });
