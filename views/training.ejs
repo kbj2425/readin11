@@ -496,7 +496,7 @@ async playSequenceWithVoice(count, onBeep = null) {
         // 첫 시작 전 한 템포(600ms) 대기
         await new Promise(resolve => setTimeout(resolve, this.BEAT_INTERVAL * 1000));
         
-        // 1-10까지는 비프음만 재생 (임시)
+        // 1-10까지는 비프음만 재생
         for (let i = 1; i <= Math.min(count, 10); i++) {
             const startTime = performance.now();
             
@@ -512,38 +512,31 @@ async playSequenceWithVoice(count, onBeep = null) {
             const elapsed = performance.now() - startTime;
             const waitTime = Math.max(0, (this.BEAT_INTERVAL * 1000) - elapsed);
             await new Promise(resolve => setTimeout(resolve, waitTime));
-        } else if (count > 10) {
-            // 10번과 11번 사이도 정확히 600ms
-            const elapsed = performance.now() - startTime;
-            const waitTime = Math.max(0, (this.BEAT_INTERVAL * 1000) - elapsed);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-        } else {
-            // 마지막 음성이 끝날 때까지 대기
-            await playPromise.catch(() => {});
-            await new Promise(resolve => setTimeout(resolve, 100));
         }
-    }
-    
-    // 11번째부터는 비프음만 재생 (100 BPM 유지)
-    if (count > 10) {
-        const startTime = this.audioContext.currentTime + 0.1;
-        const remainingCount = count - 10;
         
-        for (let i = 0; i < remainingCount; i++) {
-            const beepStartTime = startTime + (i * this.BEAT_INTERVAL);
-            this.createPreciseBeep(beepStartTime);
+        // 11번째부터는 비프음만 재생 (100 BPM 유지)
+        if (count > 10) {
+            const startTime = this.audioContext.currentTime + 0.1;
+            const remainingCount = count - 10;
             
-            if (onBeep) {
-                setTimeout(() => {
-                    onBeep(11 + i, count);
-                }, (i * this.BEAT_INTERVAL * 1000) + 100);
+            for (let i = 0; i < remainingCount; i++) {
+                const beepStartTime = startTime + (i * this.BEAT_INTERVAL);
+                this.createPreciseBeep(beepStartTime);
+                
+                if (onBeep) {
+                    setTimeout(() => {
+                        onBeep(11 + i, count);
+                    }, (i * this.BEAT_INTERVAL * 1000) + 100);
+                }
             }
+            
+            const totalDuration = (remainingCount - 1) * this.BEAT_INTERVAL + this.BEEP_DURATION;
+            await new Promise(resolve => {
+                setTimeout(resolve, (totalDuration + 0.2) * 1000);
+            });
         }
-        
-        const totalDuration = (remainingCount - 1) * this.BEAT_INTERVAL + this.BEEP_DURATION;
-        await new Promise(resolve => {
-            setTimeout(resolve, (totalDuration + 0.2) * 1000);
-        });
+    } catch (error) {
+        console.error('재생 오류:', error);
     }
     
     this.isPlaying = false;
