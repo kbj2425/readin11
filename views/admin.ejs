@@ -1002,10 +1002,22 @@ async function viewAllUserRecords(userId, username) {
         const statsResponse = await fetch(`/admin/user-stats/${userId}`);
         const statsData = await statsResponse.json();
         
+        console.log('통계 데이터:', statsData);
+        
+        if (!statsData.success || !statsData.stats) {
+            alert('통계 데이터를 불러올 수 없습니다.');
+            return;
+        }
+        
         const allRecordsResponse = await fetch(`/admin/user-all-records/${userId}`);
         const allRecordsData = await allRecordsResponse.json();
         
         console.log('전체 기록 데이터:', allRecordsData);
+        
+        if (!allRecordsData.success) {
+            alert('기록 데이터를 불러올 수 없습니다.');
+            return;
+        }
         
         showAllUserRecordsModal(username, statsData.stats, allRecordsData.dailyRecords);
     } catch (error) {
@@ -1015,6 +1027,15 @@ async function viewAllUserRecords(userId, username) {
 }
 
 function showAllUserRecordsModal(username, stats, dailyRecords) {
+    // stats가 null이면 기본값 사용
+    const safeStats = stats || {
+        totalAttempts: 0,
+        accuracy: 0,
+        correctAnswers: 0
+    };
+    
+    const safeDailyRecords = dailyRecords || [];
+    
     const modalHtml = `
         <div class="user-records-modal" id="allUserRecordsModal">
             <div class="user-records-content" style="max-width: 1200px;">
@@ -1022,9 +1043,26 @@ function showAllUserRecordsModal(username, stats, dailyRecords) {
                 
                 <div class="stats-grid">
                     <div class="stat-item">
-                        <div class="stat-number">${stats.totalAttempts}</div>
+                        <div class="stat-number">${safeStats.totalAttempts}</div>
                         <div class="stat-label">총 훈련 횟수</div>
                     </div>
+                    <div class="stat-item">
+                        <div class="stat-number">${safeStats.accuracy}%</div>
+                        <div class="stat-label">정답률</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">${safeStats.correctAnswers}</div>
+                        <div class="stat-label">정답 횟수</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">${safeDailyRecords.length}</div>
+                        <div class="stat-label">훈련 일수</div>
+                    </div>
+                </div>
+                
+                <h3>날짜별 훈련 기록</h3>
+                <div style="max-height: 500px; overflow-y: auto;">
+                    ${safeDailyRecords.length > 0 ? safeDailyRecords.map((daily, index) => `
                     <div class="stat-item">
                         <div class="stat-number">${stats.accuracy}%</div>
                         <div class="stat-label">정답률</div>
