@@ -676,34 +676,49 @@ app.get('/admin/user-records/:userId', requireAdmin, async (req, res) => {
 });
 
 app.get('/admin/user-stats/:userId', requireAdmin, async (req, res) => {
-    const userId = req.params.userId;
+    const userId = parseInt(req.params.userId);
     
     try {
-        const totalResult = await query("SELECT COUNT(*) as total FROM training_records WHERE user_id = $1", [userId]);
-        const correctResult = await query("SELECT COUNT(*) as correct FROM training_records WHERE user_id = $1 AND is_correct = true", [userId]);
-        const recentDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const recentResult = await query(`
-            SELECT COUNT(*) as recent 
-            FROM training_records 
-            WHERE user_id = $1 AND date >= $2
-        `, [userId, recentDate]);
+        console.log('=== 통계 조회 시작 ===');
+        console.log('사용자 ID:', userId);
         
-        const total = parseInt(totalResult.rows[0].total);
-        const correct = parseInt(correctResult.rows[0].correct);
-        const recent = parseInt(recentResult.rows[0].recent);
+        // 해당 사용자의 모든 기록
+        const userRecords = memoryDB.trainingRecords.filter(r => r.user_id === userId);
+        
+        console.log('사용자 기록 수:', userRecords.length);
+        
+        // 총 시도 횟수
+        const total = userRecords.length;
+        
+        // 정답 횟수
+        const correct = userRecords.filter(r => r.is_correct).length;
+        
+        // 최근 7일 기록
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+        const recent = userRecords.filter(r => r.date >= sevenDaysAgoStr).length;
+        
+        const stats = {
+            totalAttempts: total,
+            correctAnswers: correct,
+            accuracy: total > 0 ? Math.round((correct / total) * 100) : 0,
+            recentWeek: recent
+        };
+        
+        console.log('통계 결과:', stats);
         
         res.json({
             success: true,
-            stats: {
-                totalAttempts: total,
-                correctAnswers: correct,
-                accuracy: total > 0 ? Math.round((correct / total) * 100) : 0,
-                recentWeek: recent
-            }
+            stats: stats
         });
     } catch (error) {
         console.error('학생 통계 조회 오류:', error);
-        res.json({ success: false, stats: null });
+        console.error('에러 상세:', error.stack);
+        res.json({ 
+            success: false, 
+            stats: null,
+            error: error.message 
+        });
     }
 });
 
