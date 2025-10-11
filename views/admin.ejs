@@ -1060,26 +1060,9 @@ function showAllUserRecordsModal(username, stats, dailyRecords) {
                     </div>
                 </div>
                 
-                <h3>날짜별 훈련 기록</h3>
+               <h3>날짜별 훈련 기록</h3>
                 <div style="max-height: 500px; overflow-y: auto;">
                     ${safeDailyRecords.length > 0 ? safeDailyRecords.map((daily, index) => `
-                    <div class="stat-item">
-                        <div class="stat-number">${stats.accuracy}%</div>
-                        <div class="stat-label">정답률</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number">${stats.correctAnswers}</div>
-                        <div class="stat-label">정답 횟수</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number">${dailyRecords.length}</div>
-                        <div class="stat-label">훈련 일수</div>
-                    </div>
-                </div>
-                
-                <h3>날짜별 훈련 기록</h3>
-                <div style="max-height: 500px; overflow-y: auto;">
-                    ${dailyRecords.length > 0 ? dailyRecords.map((daily, index) => `
                         <div class="daily-record-item">
                             <div class="daily-record-header" onclick="toggleDailyRecord(${index})">
                                 <div>
