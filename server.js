@@ -708,19 +708,36 @@ app.get('/admin/user-stats/:userId', requireAdmin, async (req, res) => {
 });
 
 app.get('/admin/user-all-records/:userId', requireAdmin, async (req, res) => {
-    const userId = req.params.userId;
+    const userId = parseInt(req.params.userId);
     
     try {
+        console.log('=== 전체 기록 조회 시작 ===');
+        console.log('사용자 ID:', userId);
+        console.log('전체 기록 수:', memoryDB.trainingRecords.length);
+        
+        // 해당 사용자의 모든 기록 가져오기
+        const allRecords = memoryDB.trainingRecords.filter(r => r.user_id === userId);
+        
+        console.log('사용자 기록 수:', allRecords.length);
+        
+        if (allRecords.length === 0) {
+            return res.json({ 
+                success: true, 
+                dailyRecords: [] 
+            });
+        }
+        
         // 날짜별로 그룹화
         const dateGroups = {};
-        const allRecords = memoryDB.trainingRecords.filter(r => r.user_id === parseInt(userId));
         
         allRecords.forEach(record => {
-            if (!dateGroups[record.date]) {
-                dateGroups[record.date] = {
-                    date: record.date,
+            const date = record.date;
+            
+            if (!dateGroups[date]) {
+                dateGroups[date] = {
+                    date: date,
                     level: record.level,
-                    difficulty_range: record.difficulty_range,
+                    difficulty_range: record.difficulty_range || '-',
                     daily_attempts: 0,
                     correct_count: 0,
                     total_actual_count: 0,
@@ -728,10 +745,12 @@ app.get('/admin/user-all-records/:userId', requireAdmin, async (req, res) => {
                 };
             }
             
-            dateGroups[record.date].daily_attempts++;
-            if (record.is_correct) dateGroups[record.date].correct_count++;
-            dateGroups[record.date].total_actual_count += record.actual_count;
-            dateGroups[record.date].records.push({
+            dateGroups[date].daily_attempts++;
+            if (record.is_correct) {
+                dateGroups[date].correct_count++;
+            }
+            dateGroups[date].total_actual_count += parseInt(record.actual_count);
+            dateGroups[date].records.push({
                 id: record.id,
                 actual_count: record.actual_count,
                 user_answer: record.user_answer,
@@ -740,18 +759,32 @@ app.get('/admin/user-all-records/:userId', requireAdmin, async (req, res) => {
             });
         });
         
+        // 배열로 변환하고 정렬
         const dailyRecords = Object.values(dateGroups).map(group => ({
-            ...group,
-            avg_actual_count: Math.round(group.total_actual_count / group.daily_attempts)
+            date: group.date,
+            level: group.level,
+            difficulty_range: group.difficulty_range,
+            daily_attempts: group.daily_attempts,
+            correct_count: group.correct_count,
+            avg_actual_count: Math.round(group.total_actual_count / group.daily_attempts),
+            records: group.records.sort((a, b) => a.timestamp.localeCompare(b.timestamp))
         })).sort((a, b) => b.date.localeCompare(a.date));
+        
+        console.log('날짜별 그룹 수:', dailyRecords.length);
+        console.log('첫 번째 날짜:', dailyRecords[0]);
         
         res.json({ 
             success: true, 
-            dailyRecords
+            dailyRecords: dailyRecords
         });
     } catch (error) {
         console.error('전체 기록 조회 오류:', error);
-        res.json({ success: false, dailyRecords: [] });
+        console.error('에러 상세:', error.stack);
+        res.json({ 
+            success: false, 
+            dailyRecords: [],
+            error: error.message 
+        });
     }
 });
 
