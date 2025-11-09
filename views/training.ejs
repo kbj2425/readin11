@@ -496,7 +496,7 @@ async playSequenceWithVoice(count, onBeep = null) {
         // 첫 시작 전 한 템포(600ms) 대기
         await new Promise(resolve => setTimeout(resolve, this.BEAT_INTERVAL * 1000));
         
-        // 1-10까지는 MP3 음성 + 비프음 동시 재생
+      // 1-10까지는 MP3 음성만 재생
         for (let i = 1; i <= Math.min(count, 10); i++) {
             const startTime = performance.now();
             
@@ -504,14 +504,10 @@ async playSequenceWithVoice(count, onBeep = null) {
                 onBeep(i, count);
             }
             
-            // MP3 음성 재생
+            // MP3 음성만 재생 (비프음 없음)
             const audio = new Audio(this.numberAudioUrls[i]);
             audio.crossOrigin = "anonymous";
             audio.play().catch(err => console.error(`음성 ${i} 재생 오류:`, err));
-            
-            // 비프음 동시 재생
-            const beepTime = this.audioContext.currentTime;
-            this.createPreciseBeep(beepTime);
             
             // 600ms 대기
             const elapsed = performance.now() - startTime;
