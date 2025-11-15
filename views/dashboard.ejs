@@ -232,8 +232,8 @@
                 <strong>현재 난이도:</strong> <%= difficultyRange.min %>~<%= difficultyRange.max %>회 반복
             </div>
 
-            <% if (remainingAttempts > 0) { %>
-                <a href="/training" class="start-training">훈련 시작</a>
+ <% if (remainingAttempts > 0) { %>
+                <a href="/breathing" class="start-training">훈련 시작</a>
             <% } else { %>
                 <button class="start-training" disabled>오늘의 훈련 완료</button>
             <% } %>
