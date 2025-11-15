@@ -465,6 +465,18 @@ app.get('/dashboard', requireAuth, async (req, res) => {
     }
 });
 
+// 심호흡 훈련 페이지
+app.get('/breathing', requireAuth, (req, res) => {
+    if (req.session.isAdmin) {
+        res.redirect('/admin');
+        return;
+    }
+
+    res.render('breathing', {
+        username: req.session.username
+    });
+});
+
 app.get('/training', requireAuth, async (req, res) => {
     if (req.session.isAdmin) {
         res.redirect('/admin');
