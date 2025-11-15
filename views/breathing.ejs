@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>심호흡 훈련 - READIN</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .breathing-circle {
+            width: 200px;
+            height: 200px;
+            margin: 40px auto;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FFC0CB 0%, #FF69B4 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 10px 30px rgba(255, 105, 180, 0.4);
+            transition: transform 0.3s ease;
+        }
+        
+        .breathing-circle:hover {
+            transform: scale(1.05);
+        }
+        
+        .play-button {
+            background: linear-gradient(135deg, #FF69B4 0%, #FFC0CB 100%);
+            color: white;
+            border: none;
+            padding: 20px 50px;
+            font-size: 1.3em;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(255, 105, 180, 0.4);
+            transition: all 0.3s ease;
+            margin: 20px 0;
+        }
+        
+        .play-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(255, 105, 180, 0.5);
+        }
+        
+        .play-button:active {
+            transform: translateY(-1px);
+        }
+        
+        .play-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+@media (max-width: 600px) {
+            .container {
+                padding: 30px 20px;
+            }
+            
+            h1 {
+                font-size: 1.5em;
+            }
+            
+            .breathing-circle {
+                width: 150px;
+                height: 150px;
+                font-size: 1.2em;
+            }
+            
+            .play-button {
+                padding: 15px 40px;
+                font-size: 1.1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧘 심호흡 훈련</h1>
+        <p class="subtitle">집중력 훈련을 시작하기 전에 마음을 가다듬어보세요</p>
+        
+        <div class="breathing-circle" id="breathingCircle">
+            준비
+        </div>
+        
+        <button class="play-button" id="playButton" onclick="startBreathing()">
+            ▶ 시작하기
+        </button>
+        
+<div class="status" id="status"></div>
+    </div>
+
+    <script>
+        let audio = null;
+        let isPlaying = false;
+
+        async function startBreathing() {
+            if (isPlaying) return;
+            
+            const playButton = document.getElementById('playButton');
+            const status = document.getElementById('status');
+            const circle = document.getElementById('breathingCircle');
+            
+            try {
+                playButton.disabled = true;
+                playButton.textContent = '⏸ 재생 중...';
+                isPlaying = true;
+                
+                circle.textContent = '🎵';
+                status.textContent = '심호흡 가이드를 듣고 따라해보세요';
+                
+                // MP3 파일 재생
+                audio = new Audio('/sounds/breathing.mp3');
+                audio.play();
+                
+                audio.onended = () => {
+                    playButton.textContent = '✓ 완료';
+                    playButton.style.background = '#28a745';
+                    status.textContent = '심호흡 완료! 이제 훈련을 시작하세요.';
+                    circle.textContent = '✓';
+                    isPlaying = false;
+                    
+                    // 3초 후 자동으로 훈련 페이지로 이동
+                    setTimeout(() => {
+                        window.location.href = '/training';
+                    }, 3000);
+                };
+                
+                audio.onerror = () => {
+                    status.textContent = '오디오 재생에 실패했습니다.';
+                    playButton.disabled = false;
+                    playButton.textContent = '▶ 다시 시도';
+                    isPlaying = false;
+                };
+                
+            } catch (error) {
+                console.error('심호흡 재생 오류:', error);
+                status.textContent = '오디오 재생 중 오류가 발생했습니다.';
+                playButton.disabled = false;
+                playButton.textContent = '▶ 다시 시도';
+                isPlaying = false;
+            }
+        }
+    </script>
+</body>
+</html>
