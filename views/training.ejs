@@ -366,16 +366,7 @@ class PrecisionAudioManager {
         // 숫자 음성 파일 URL (Google Drive)
        // 숫자 음성 파일 URL (로컬 파일)
 this.numberAudioUrls = {
-    1: '/sounds/1.mp3',
-    2: '/sounds/2.mp3',
-    3: '/sounds/3.mp3',
-    4: '/sounds/4.mp3',
-    5: '/sounds/5.mp3',
-    6: '/sounds/6.mp3',
-    7: '/sounds/7.mp3',
-    8: '/sounds/8.mp3',
-    9: '/sounds/9.mp3',
-    10: '/sounds/10.mp3'
+    combined: '/sounds/numbers_1-10.mp3'  // 통합 파일 (6000ms)
 };
     }
     
@@ -458,31 +449,6 @@ async playSequence(count, onBeep = null) {
     this.isPlaying = false;
 }
 
-async playNumberAudio(number) {
-    return new Promise((resolve, reject) => {
-        const audio = new Audio();
-        audio.crossOrigin = "anonymous";
-        audio.src = this.numberAudioUrls[number];
-        
-        audio.onended = () => {
-            console.log(`음성 ${number} 재생 완료`);
-            resolve();
-        };
-        
-        audio.onerror = (e) => {
-            console.error(`음성 ${number} 재생 실패:`, e);
-            console.log('URL:', this.numberAudioUrls[number]);
-            resolve();
-        };
-        
-        audio.play().then(() => {
-            console.log(`음성 ${number} 재생 시작`);
-        }).catch(err => {
-            console.error(`음성 ${number} 재생 오류:`, err);
-            resolve();
-        });
-    });
-}
 
 async playSequenceWithVoice(count, onBeep = null) {
     if (!this.initialized) {
@@ -496,28 +462,31 @@ async playSequenceWithVoice(count, onBeep = null) {
         // 첫 시작 전 한 템포(600ms) 대기
         await new Promise(resolve => setTimeout(resolve, 600));
         
-        // 1-10까지는 MP3 + 비프음 동시 예약 재생 (600ms 간격)
         const audioStartTime = this.audioContext.currentTime;
         const maxVoiceCount = Math.min(count, 10);
         
-        for (let i = 1; i <= maxVoiceCount; i++) {
-            // MP3 예약 재생
-            setTimeout(() => {
-                const audio = new Audio(this.numberAudioUrls[i]);
-                audio.crossOrigin = "anonymous";
-                audio.play().catch(err => console.error(`음성 ${i} 재생 오류:`, err));
-                
-                if (onBeep) {
-                    onBeep(i, count);
-                }
-            }, (i - 1) * 600);
+        // 1-10까지 처리
+        if (maxVoiceCount > 0) {
+            // 통합 MP3 파일 1번만 재생 (1-10 모두 포함, 6000ms)
+            const combinedAudio = new Audio(this.numberAudioUrls.combined);
+            combinedAudio.crossOrigin = "anonymous";
+            combinedAudio.play().catch(err => console.error('통합 음성 재생 오류:', err));
             
-            // 비프음 예약 재생
-            this.createPreciseBeep(audioStartTime + (i - 1) * 0.6);
+            // 비프음들을 600ms 간격으로 예약
+            for (let i = 1; i <= maxVoiceCount; i++) {
+                this.createPreciseBeep(audioStartTime + (i - 1) * 0.6);
+                
+                // 시각적 피드백
+                if (onBeep) {
+                    setTimeout(() => {
+                        onBeep(i, count);
+                    }, (i - 1) * 600);
+                }
+            }
+            
+            // 통합 MP3 재생 완료 대기
+            await new Promise(resolve => setTimeout(resolve, maxVoiceCount * 600));
         }
-        
-        // 1-10번 재생 완료 대기
-        await new Promise(resolve => setTimeout(resolve, maxVoiceCount * 600));
         
         // 11번째부터는 비프음만 재생
         if (count > 10) {
