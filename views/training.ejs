@@ -381,7 +381,7 @@ this.numberAudioUrls = {
             
             this.masterGain = this.audioContext.createGain();
             this.masterGain.connect(this.audioContext.destination);
-            this.masterGain.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+            this.masterGain.gain.setValueAtTime(0.6, this.audioContext.currentTime);
             
             if (this.audioContext.state === 'suspended') {
                 await this.audioContext.resume();
@@ -467,20 +467,20 @@ async playSequenceWithVoice(count, onBeep = null) {
         
         // 1-10까지 처리
         if (maxVoiceCount > 0) {
-            // 통합 MP3 파일 1번만 재생 (1-10 모두 포함, 6000ms)
+            // 통합 MP3 파일 바로 재생
             const combinedAudio = new Audio(this.numberAudioUrls.combined);
             combinedAudio.crossOrigin = "anonymous";
             combinedAudio.play().catch(err => console.error('통합 음성 재생 오류:', err));
             
-            // 비프음들을 600ms 간격으로 예약
+            // 비프음들을 600ms 늦게 시작, 그 후 600ms 간격으로 예약
             for (let i = 1; i <= maxVoiceCount; i++) {
-                this.createPreciseBeep(audioStartTime + (i - 1) * 0.6);
+                this.createPreciseBeep(audioStartTime + 0.6 + (i - 1) * 0.6);
                 
                 // 시각적 피드백
                 if (onBeep) {
                     setTimeout(() => {
                         onBeep(i, count);
-                    }, (i - 1) * 600);
+                    }, 600 + (i - 1) * 600);
                 }
             }
             
