@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5단계: 책읽기 과정 - READIN</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #FFC0CB, #FFB6C1);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 50px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .step-indicator {
+            color: #FF69B4;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .instruction {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 30px 0;
+            font-size: 1.3em;
+            color: #666;
+            line-height: 1.8;
+        }
+
+        .reading-icon {
+            font-size: 3em;
+            margin: 20px 0;
+        }
+
+        .start-button {
+            background: linear-gradient(135deg, #FF69B4, #FFC0CB);
+            color: white;
+            border: none;
+            padding: 25px 60px;
+            border-radius: 50px;
+            font-size: 1.5em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            box-shadow: 0 10px 30px rgba(255, 105, 180, 0.4);
+        }
+
+        .start-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(255, 105, 180, 0.5);
+        }
+
+        .completion-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            font-size: 1.1em;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .instruction {
+                font-size: 1.1em;
+                padding: 20px;
+            }
+
+            .start-button {
+                padding: 20px 40px;
+                font-size: 1.2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="step-indicator">5/5 단계 (최종)</div>
+        <h1>🎉 모든 준비가 완료되었습니다!</h1>
+        
+        <div class="reading-icon">📖</div>
+        
+        <div class="instruction">
+            이제 책읽기 과정을 시작할 준비가 되었습니다<br>
+            아래 버튼을 눌러 시작하세요
+        </div>
+
+        <button class="start-button" onclick="startReading()">
+            책읽기 시작하기 →
+        </button>
+
+        <div class="completion-message">
+            ✓ 모든 단계가 자동으로 완료 처리되었습니다
+        </div>
+    </div>
+
+    <script>
+        // 페이지 로드시 자동 완료 처리
+        window.addEventListener('load', async function() {
+            try {
+                await fetch('/complete-step', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ step: 5 })
+                });
+                console.log('5단계 자동 완료 처리됨');
+            } catch (error) {
+                console.error('자동 완료 처리 오류:', error);
+            }
+        });
+
+        function startReading() {
+            window.location.href = 'https://www.readin.co.kr/landing';
+        }
+    </script>
+</body>
+</html>
