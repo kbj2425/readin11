@@ -590,7 +590,7 @@ async function startTraining() {
             }
         }
 
-        function showResult(result) {
+       function showResult(result) {
             const resultDiv = document.getElementById('result');
             const answerSection = document.getElementById('answerSection');
             
@@ -617,6 +617,11 @@ async function startTraining() {
             }
             
             resultDiv.style.display = 'block';
+            
+            // 3초 후 1단계로 자동 이동
+            setTimeout(() => {
+                window.location.href = '/step1-eye';
+            }, 3000);
         }
 
         // Enter key support for answer input
