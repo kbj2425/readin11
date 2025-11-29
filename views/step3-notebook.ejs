@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3단계: 독서 노트 - READIN</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #FFC0CB, #FFB6C1);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 50px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .step-indicator {
+            color: #FF69B4;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .instruction {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 30px 0;
+            font-size: 1.3em;
+            color: #666;
+            line-height: 1.8;
+        }
+
+        .notebook-icon {
+            font-size: 3em;
+            margin: 20px 0;
+        }
+
+        .checkbox-container {
+            margin: 40px 0;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2em;
+            color: #333;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 30px;
+            height: 30px;
+            margin-right: 15px;
+            cursor: pointer;
+        }
+
+        .next-button {
+            background: #FFC0CB;
+            color: white;
+            border: none;
+            padding: 20px 50px;
+            border-radius: 50px;
+            font-size: 1.3em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .next-button.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .next-button.active:hover {
+            background: #FF69B4;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(255, 105, 180, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .instruction {
+                font-size: 1.1em;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="step-indicator">3/5 단계</div>
+        <h1>독서 노트 틀린 부분을<br>고쳐주세요</h1>
+        
+        <div class="notebook-icon">📓</div>
+        
+        <div class="instruction">
+            📋 독서 노트를 꺼내세요<br>
+            🔍 틀린 부분을 찾아보세요<br>
+            ✍️ 올바르게 수정해주세요
+        </div>
+
+        <div class="checkbox-container">
+            <label class="checkbox-label">
+                <input type="checkbox" id="completeCheck" onchange="enableNext()">
+                <span>독서 노트 수정을 완료했습니다</span>
+            </label>
+        </div>
+
+        <button class="next-button" id="nextButton" onclick="goNext()">
+            다음 단계로 →
+        </button>
+    </div>
+
+    <script>
+        function enableNext() {
+            const checkbox = document.getElementById('completeCheck');
+            const button = document.getElementById('nextButton');
+            
+            if (checkbox.checked) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
+        }
+
+        async function goNext() {
+            const checkbox = document.getElementById('completeCheck');
+            
+            if (!checkbox.checked) {
+                alert('체크박스를 선택해주세요.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/complete-step', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ step: 3 })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    window.location.href = '/step4-listening';
+                } else {
+                    alert('저장에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('서버 오류가 발생했습니다.');
+            }
+        }
+    </script>
+</body>
+</html>
