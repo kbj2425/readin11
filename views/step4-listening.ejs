@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4단계: 읽기듣기 트레이닝 - READIN</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #FFC0CB, #FFB6C1);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 50px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .step-indicator {
+            color: #FF69B4;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .instruction {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 30px 0;
+            font-size: 1.3em;
+            color: #666;
+            line-height: 1.8;
+        }
+
+        .training-icon {
+            font-size: 3em;
+            margin: 20px 0;
+        }
+
+        .main-button {
+            background: #FFC0CB;
+            color: white;
+            border: none;
+            padding: 20px 50px;
+            border-radius: 50px;
+            font-size: 1.3em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .main-button:hover {
+            background: #FF69B4;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(255, 105, 180, 0.4);
+        }
+
+        .skip-button {
+            background: transparent;
+            color: #999;
+            border: none;
+            padding: 10px 20px;
+            font-size: 0.9em;
+            cursor: pointer;
+            margin-top: 20px;
+            text-decoration: underline;
+        }
+
+        .skip-button:hover {
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .instruction {
+                font-size: 1.1em;
+                padding: 20px;
+            }
+
+            .main-button {
+                padding: 15px 30px;
+                font-size: 1.1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="step-indicator">4/5 단계</div>
+        <h1>읽기,듣기 트레이닝을<br>해주세요</h1>
+        
+        <div class="training-icon">🎧</div>
+        
+        <div class="instruction">
+            📚 읽쓰 플러스에서<br>
+            읽기와 듣기 트레이닝을 진행해주세요
+        </div>
+
+        <button class="main-button" onclick="goToIcksPlus()">
+            읽쓰 플러스로 가기 →
+        </button>
+
+        <br>
+
+        <button class="skip-button" onclick="skipTraining()">
+            읽기,듣기 트레이닝을 하지 않아요
+        </button>
+    </div>
+
+    <script>
+        async function goToIcksPlus() {
+            // 외부 사이트 열기
+            window.open('https://www.icksplus.co.kr/main', '_blank');
+            
+            // 4단계 완료 처리 및 5단계로 이동
+            try {
+                const response = await fetch('/complete-step', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ step: 4 })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    window.location.href = '/step5-reading';
+                } else {
+                    alert('저장에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('서버 오류가 발생했습니다.');
+            }
+        }
+
+        async function skipTraining() {
+            if (!confirm('읽기,듣기 트레이닝을 건너뛰시겠습니까?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/complete-step', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ step: 4 })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    window.location.href = '/step5-reading';
+                } else {
+                    alert('저장에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('서버 오류가 발생했습니다.');
+            }
+        }
+    </script>
+</body>
+</html>
