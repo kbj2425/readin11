@@ -296,8 +296,8 @@ async function initializeDatabase() {
 
         // 기본 설정 초기화
         const defaultSettings = [
-            { key: 'auto_signup', value: '0', description: '자동 회원가입 허용 여부', updated_by: 'system' },
-            { key: 'allow_password_change', value: '1', description: '참가자 비밀번호 변경 허용 여부', updated_by: 'system' },
+            { key: 'auto_signup', value: '1', description: '자동 회원가입 허용 여부', updated_by: 'system' },
+            { key: 'allow_password_change', value: '0', description: '참가자 비밀번호 변경 허용 여부', updated_by: 'system' },
             { key: 'show_visual_feedback', value: '1', description: '훈련 중 시각적 피드백 표시 여부', updated_by: 'system' }
         ];
 
@@ -416,6 +416,20 @@ app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     
     try {
+        // 자동 회원가입시 유효성 검사 (readin 제외)
+        if (username !== 'readin') {
+            const koreanOnly = /^[가-힣]{2,3}$/;
+            if (!koreanOnly.test(username)) {
+                const settingsResult = await query("SELECT value FROM settings WHERE key = $1", ['auto_signup']);
+                const autoSignup = settingsResult.rows.length > 0 ? settingsResult.rows[0].value === '1' : false;
+                res.render('login', { 
+                    error: '이름은 2-3글자 한글만 가능합니다. (숫자, 영어, 특수문자 불가)', 
+                    autoSignup 
+                });
+                return;
+            }
+        }
+        
         const result = await query("SELECT * FROM users WHERE username = $1 AND status = 'active'", [username]);
         const user = result.rows[0];
         
@@ -1001,10 +1015,22 @@ app.post('/complete-step', requireAuth, async (req, res) => {
     }
 
     const { step } = req.body;
-    const today = getTodayKST();
     const userId = req.session.userId;
     
     try {
+        // 오늘 날짜가 아닌 가장 최근 단계 완료 기록을 가져옴
+        const allCompletions = memoryDB.stepCompletions.filter(sc => sc.user_id === userId);
+        const latestCompletion = allCompletions.length > 0 
+            ? allCompletions.sort((a, b) => b.date.localeCompare(a.date))[0]
+            : null;
+        
+        // 이미 해당 단계를 완료한 적이 있으면 저장하지 않음
+        if (latestCompletion && latestCompletion[`step${step}`]) {
+            res.json({ success: true, message: '이미 완료한 단계입니다.' });
+            return;
+        }
+        
+        const today = getTodayKST();
         const result = await query(
             "SELECT * FROM step_completions WHERE user_id = $1 AND date = $2",
             [userId, today]
