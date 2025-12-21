@@ -156,7 +156,7 @@ async function query(text, params = []) {
         return { rows: [] };
     }
     
-    if (text.includes('INSERT') && text.includes('settings')) {
+   if (text.includes('INSERT') && text.includes('settings')) {
         const existing = memoryDB.settings.find(s => s.key === params[0]);
         if (!existing) {
             const newSetting = {
@@ -167,6 +167,22 @@ async function query(text, params = []) {
             };
             memoryDB.settings.push(newSetting);
         }
+        return { rows: [] };
+    }
+    
+    if (text.includes('INSERT INTO step_completions')) {
+        const newCompletion = {
+            id: stepCompletionIdCounter++,
+            user_id: params[0],
+            date: params[1],
+            step1: params[2] || false,
+            step2: params[3] || false,
+            step3: params[4] || false,
+            step4: params[5] || false,
+            step5: params[6] || false,
+            completed_at: new Date().toISOString()
+        };
+        memoryDB.stepCompletions.push(newCompletion);
         return { rows: [] };
     }
     
@@ -206,6 +222,21 @@ async function query(text, params = []) {
             setting.updated_by = params[1];
         }
         return { rows: [] };
+    }
+    
+    // 단계 완료 조회 추가
+    if (text.includes('SELECT') && text.includes('FROM step_completions')) {
+        if (text.includes('WHERE user_id') && text.includes('AND date')) {
+            const completions = memoryDB.stepCompletions.filter(sc => 
+                sc.user_id === params[0] && sc.date === params[1]
+            );
+            return { rows: completions };
+        }
+        
+        if (text.includes('WHERE date')) {
+            const completions = memoryDB.stepCompletions.filter(sc => sc.date === params[0]);
+            return { rows: completions };
+        }
     }
     
     // DELETE 쿼리 시뮬레이션
@@ -904,6 +935,77 @@ app.post('/admin/force-change-password', requireAdmin, async (req, res) => {
     } catch (error) {
         console.error('강제 비밀번호 변경 오류:', error);
         res.json({ success: false, message: '비밀번호 변경에 실패했습니다.' });
+    }
+});
+
+// 단계 완료 처리
+app.post('/complete-step', requireAuth, async (req, res) => {
+    if (req.session.isAdmin) {
+        res.json({ success: false, message: '관리자는 단계를 완료할 수 없습니다.' });
+        return;
+    }
+
+    const { step } = req.body;
+    const today = getTodayKST();
+    const userId = req.session.userId;
+    
+    try {
+        const result = await query(
+            "SELECT * FROM step_completions WHERE user_id = $1 AND date = $2",
+            [userId, today]
+        );
+        
+        if (result.rows.length === 0) {
+            await query(
+                `INSERT INTO step_completions (user_id, date, step1, step2, step3, step4, step5) VALUES ($1, $2, ${step === 1}, ${step === 2}, ${step === 3}, ${step === 4}, ${step === 5})`,
+                [userId, today]
+            );
+        } else {
+            await query(
+                `UPDATE step_completions SET step = ? WHERE user_id = $1 AND date = $2`,
+                [step, userId, today]
+            );
+        }
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('단계 완료 처리 오류:', error);
+        res.json({ success: false, message: '서버 오류가 발생했습니다.' });
+    }
+});
+
+// 오늘의 단계 완료 현황 조회 (관리자용)
+app.get('/admin/today-steps', requireAdmin, async (req, res) => {
+    const today = getTodayKST();
+    
+    try {
+        const completions = memoryDB.stepCompletions.filter(sc => sc.date === today);
+        const users = memoryDB.users.filter(u => !u.is_admin);
+        
+        const results = users.map(user => {
+            const completion = completions.find(c => c.user_id === user.id);
+            return {
+                id: user.id,
+                username: user.username,
+                step1: completion?.step1 || false,
+                step2: completion?.step2 || false,
+                step3: completion?.step3 || false,
+                step4: completion?.step4 || false,
+                step5: completion?.step5 || false,
+                completed_count: [
+                    completion?.step1,
+                    completion?.step2,
+                    completion?.step3,
+                    completion?.step4,
+                    completion?.step5
+                ].filter(Boolean).length
+            };
+        });
+        
+        res.json({ success: true, data: results });
+    } catch (error) {
+        console.error('단계 현황 조회 오류:', error);
+        res.json({ success: false, data: [] });
     }
 });
 
