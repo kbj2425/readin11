@@ -13,12 +13,14 @@ const memoryDB = {
     users: [],
     trainingRecords: [],
     dailyAttempts: [],
-    settings: []
+    settings: [],
+    stepCompletions: []
 };
 
 let userIdCounter = 1;
 let recordIdCounter = 1;
 let attemptIdCounter = 1;
+let stepCompletionIdCounter = 1;
 
 // 쿼리 헬퍼 함수 (메모리 DB용)
 async function query(text, params = []) {
