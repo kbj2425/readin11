@@ -1016,41 +1016,42 @@ app.post('/complete-step', requireAuth, async (req, res) => {
 
     const { step } = req.body;
     const userId = req.session.userId;
+    const today = getTodayKST();
+    
+    console.log('=== 단계 완료 요청 ===');
+    console.log('userId:', userId, 'step:', step, 'today:', today);
     
     try {
-        // 오늘 날짜가 아닌 가장 최근 단계 완료 기록을 가져옴
-        const allCompletions = memoryDB.stepCompletions.filter(sc => sc.user_id === userId);
-        const latestCompletion = allCompletions.length > 0 
-            ? allCompletions.sort((a, b) => b.date.localeCompare(a.date))[0]
-            : null;
-        
-        // 이미 해당 단계를 완료한 적이 있으면 저장하지 않음
-        if (latestCompletion && latestCompletion[`step${step}`]) {
-            res.json({ success: true, message: '이미 완료한 단계입니다.' });
-            return;
-        }
-        
-        const today = getTodayKST();
-        const result = await query(
-            "SELECT * FROM step_completions WHERE user_id = $1 AND date = $2",
-            [userId, today]
+        // 오늘 날짜의 완료 기록 찾기
+        let completion = memoryDB.stepCompletions.find(sc => 
+            sc.user_id === userId && sc.date === today
         );
         
-        if (result.rows.length === 0) {
-            await query(
-                `INSERT INTO step_completions (user_id, date, step1, step2, step3, step4, step5) VALUES ($1, $2, ${step === 1}, ${step === 2}, ${step === 3}, ${step === 4}, ${step === 5})`,
-                [userId, today]
-            );
+        if (!completion) {
+            // 새로운 기록 생성
+            completion = {
+                id: stepCompletionIdCounter++,
+                user_id: userId,
+                date: today,
+                step1: step === 1,
+                step2: step === 2,
+                step3: step === 3,
+                step4: step === 4,
+                step5: step === 5,
+                completed_at: new Date().toISOString()
+            };
+            memoryDB.stepCompletions.push(completion);
+            console.log('✅ 새로운 완료 기록 생성:', completion);
         } else {
-            await query(
-                `UPDATE step_completions SET step = ? WHERE user_id = $1 AND date = $2`,
-                [step, userId, today]
-            );
+            // 기존 기록 업데이트
+            completion[`step${step}`] = true;
+            completion.completed_at = new Date().toISOString();
+            console.log('✅ 기존 기록 업데이트:', completion);
         }
         
         res.json({ success: true });
     } catch (error) {
-        console.error('단계 완료 처리 오류:', error);
+        console.error('❌ 단계 완료 처리 오류:', error);
         res.json({ success: false, message: '서버 오류가 발생했습니다.' });
     }
 });
