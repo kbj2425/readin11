@@ -549,6 +549,61 @@ app.get('/training', requireAuth, async (req, res) => {
     }
 });
 
+// 1단계: 안구 회전 훈련
+app.get('/step1-eye', requireAuth, (req, res) => {
+    if (req.session.isAdmin) {
+        res.redirect('/admin');
+        return;
+    }
+    res.render('step1-eye', {
+        username: req.session.username
+    });
+});
+
+// 2단계: 선생님 한마디
+app.get('/step2-teacher', requireAuth, (req, res) => {
+    if (req.session.isAdmin) {
+        res.redirect('/admin');
+        return;
+    }
+    res.render('step2-teacher', {
+        username: req.session.username
+    });
+});
+
+// 3단계: 독서 노트
+app.get('/step3-notebook', requireAuth, (req, res) => {
+    if (req.session.isAdmin) {
+        res.redirect('/admin');
+        return;
+    }
+    res.render('step3-notebook', {
+        username: req.session.username
+    });
+});
+
+// 4단계: 읽기듣기 트레이닝
+app.get('/step4-listening', requireAuth, (req, res) => {
+    if (req.session.isAdmin) {
+        res.redirect('/admin');
+        return;
+    }
+    res.render('step4-listening', {
+        username: req.session.username
+    });
+});
+
+// 5단계: 책읽기 시작
+app.get('/step5-reading', requireAuth, (req, res) => {
+    if (req.session.isAdmin) {
+        res.redirect('/admin');
+        return;
+    }
+    res.render('step5-reading', {
+        username: req.session.username
+    });
+});
+
 app.post('/submit-answer', requireAuth, async (req, res) => {
     if (req.session.isAdmin) {
         res.json({ success: false, message: '관리자는 훈련에 참여할 수 없습니다.' });
