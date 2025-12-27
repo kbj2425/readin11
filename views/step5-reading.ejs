@@ -142,13 +142,25 @@
                     body: JSON.stringify({ step: 5 })
                 });
                 console.log('5단계 자동 완료 처리됨');
+                
+                // 자동 로그아웃
+                setTimeout(async () => {
+                    await fetch('/logout');
+                    console.log('자동 로그아웃 완료');
+                }, 500);
             } catch (error) {
                 console.error('자동 완료 처리 오류:', error);
             }
         });
 
-        function startReading() {
-            window.location.href = 'https://www.readin.co.kr/landing';
+        async function startReading() {
+            // 외부 사이트 열기
+            window.open('https://www.readin.co.kr/landing', '_blank');
+            
+            // 로그아웃 처리
+            setTimeout(() => {
+                window.location.href = '/logout';
+            }, 1000);
         }
     </script>
 </body>
