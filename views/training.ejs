@@ -556,7 +556,7 @@ async function startTraining() {
     }
 }
 
-        async function submitAnswer() {
+       async function submitAnswer() {
             const answerInput = document.getElementById('answerInput');
             const userAnswer = parseInt(answerInput.value);
             
@@ -564,6 +564,14 @@ async function startTraining() {
                 alert('올바른 횟수를 입력해주세요.');
                 return;
             }
+            
+            // 제출 중 안내
+            const submitButton = document.querySelector('.submit-button');
+            submitButton.disabled = true;
+            submitButton.textContent = '제출 중... 잠시만 기다려주세요';
+            document.getElementById('status').textContent = '답변을 제출하는 중입니다. 잠시만 기다려주세요...';
+            document.getElementById('status').style.color = '#FF69B4';
+            document.getElementById('status').style.fontWeight = 'bold';
             
             try {
                 const response = await fetch('/submit-answer', {
@@ -621,7 +629,7 @@ async function startTraining() {
             // 3초 후 1단계로 자동 이동
             setTimeout(() => {
                 window.location.href = '/step1-eye';
-            }, 3000);
+            }, 1000);
         }
 
         // Enter key support for answer input
