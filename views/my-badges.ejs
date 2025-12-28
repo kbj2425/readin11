@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>내 배지 - READIN</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #FFC0CB, #FFB6C1);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            color: #FFC0CB;
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .username {
+            color: #FFC0CB;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 10px 15px;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .username:hover {
+            background: #f0f0f0;
+        }
+
+        .dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            min-width: 150px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .dropdown.show {
+            display: block;
+        }
+
+        .dropdown a {
+            display: block;
+            padding: 10px 15px;
+            text-decoration: none;
+            color: #333;
+            transition: background 0.3s;
+        }
+
+        .dropdown a:hover {
+            background: #FFC0CB;
+            color: white;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .badges-card {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .badges-title {
+            text-align: center;
+            color: #333;
+            font-size: 2em;
+            margin-bottom: 30px;
+        }
+
+        .no-badges {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .no-badges-icon {
+            font-size: 5em;
+            margin-bottom: 20px;
+        }
+
+        .badges-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .badge-item {
+            background: linear-gradient(135deg, #fff, #f8f9fa);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .badge-item:hover {
+            transform: translateY(-5px);
+        }
+
+        .badge-item.gold {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: white;
+        }
+
+        .badge-item.silver {
+            background: linear-gradient(135deg, #C0C0C0, #A8A8A8);
+            color: white;
+        }
+
+        .badge-item.bronze {
+            background: linear-gradient(135deg, #CD7F32, #B87333);
+            color: white;
+        }
+
+        .badge-item.excellence {
+            background: linear-gradient(135deg, #FF69B4, #FFC0CB);
+            color: white;
+        }
+
+        .badge-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+        }
+
+        .badge-rank {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .badge-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .badge-month {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .badge-reward {
+            background: rgba(255,255,255,0.3);
+            padding: 8px 15px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .badge-item.gold .badge-reward,
+        .badge-item.silver .badge-reward,
+        .badge-item.bronze .badge-reward,
+        .badge-item.excellence .badge-reward {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .back-button {
+            display: block;
+            text-align: center;
+            background: #6c757d;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 5px;
+            text-decoration: none;
+            margin: 30px auto 0;
+            width: fit-content;
+        }
+
+        .back-button:hover {
+            background: #545b62;
+        }
+
+        @media (max-width: 768px) {
+            .badges-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
+            .badges-card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">READIN</div>
+        <div class="user-menu">
+            <div class="username" onclick="toggleDropdown()"><%= username %> ▼</div>
+            <div class="dropdown" id="dropdown">
+                <a href="/dashboard">대시보드</a>
+                <a href="/ranking">랭킹</a>
+                <a href="/change-password">비밀번호 변경</a>
+                <a href="/logout">로그아웃</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="badges-card">
+            <h1 class="badges-title">🏆 내 배지 컬렉션</h1>
+
+            <% if (badges.length === 0) { %>
+                <div class="no-badges">
+                    <div class="no-badges-icon">🎖️</div>
+                    <h3>아직 획득한 배지가 없습니다</h3>
+                    <p style="margin-top: 15px;">월간 랭킹 상위권에 들어 배지를 획득하세요!</p>
+                </div>
+            <% } else { %>
+                <div class="badges-grid">
+                    <% badges.forEach(badge => { %>
+                        <div class="badge-item <%= badge.badge_type %>">
+                            <div class="badge-icon">
+                                <% if (badge.badge_type === 'gold') { %>🥇
+                                <% } else if (badge.badge_type === 'silver') { %>🥈
+                                <% } else if (badge.badge_type === 'bronze') { %>🥉
+                                <% } else { %>🎖️
+                                <% } %>
+                            </div>
+                            <div class="badge-rank"><%= badge.rank %>위</div>
+                            <div class="badge-name"><%= badge.badge_name %></div>
+                            <div class="badge-month">
+                                <%= badge.month.split('-')[0] %>년 
+                                <%= badge.month.split('-')[1] %>월
+                            </div>
+                            <div class="badge-reward">보상: <%= badge.reward %></div>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+
+            <a href="/dashboard" class="back-button">대시보드로 돌아가기</a>
+        </div>
+    </div>
+
+    <script>
+        let dropdownTimeout;
+
+        function toggleDropdown() {
+            const dropdown = document.getElementById('dropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        document.querySelector('.user-menu').addEventListener('mouseenter', function() {
+            clearTimeout(dropdownTimeout);
+            document.getElementById('dropdown').classList.add('show');
+        });
+
+        document.querySelector('.user-menu').addEventListener('mouseleave', function() {
+            dropdownTimeout = setTimeout(function() {
+                document.getElementById('dropdown').classList.remove('show');
+            }, 300);
+        });
+
+        document.addEventListener('click', function(event) {
+            const userMenu = document.querySelector('.user-menu');
+            if (!userMenu.contains(event.target)) {
+                document.getElementById('dropdown').classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>
