@@ -511,6 +511,35 @@
             transition: width 0.3s;
         }
 
+        .ranking-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .ranking-table th,
+        .ranking-table td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .ranking-table th {
+            background: #FFC0CB;
+            color: white;
+            font-weight: bold;
+        }
+
+        .ranking-row-1 { background: #fff9e6; }
+        .ranking-row-2 { background: #f5f5f5; }
+        .ranking-row-3 { background: #fff0e6; }
+        .ranking-row-4,
+        .ranking-row-5 { background: #ffe6f0; }
+
+        .badge-icon {
+            font-size: 1.5em;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
@@ -617,6 +646,30 @@
         </div>
 
 <div class="admin-section">
+            <h2 class="section-title">월간 랭킹 관리</h2>
+            
+            <div class="ranking-controls" style="margin-bottom: 20px;">
+                <label>조회 년월:</label>
+                <select id="rankingYear" style="padding: 8px; margin: 0 10px; border: 2px solid #FFC0CB; border-radius: 5px;">
+                    <% for(let y = 2026; y <= 2030; y++) { %>
+                        <option value="<%= y %>" <%= y === new Date().getFullYear() ? 'selected' : '' %>><%= y %>년</option>
+                    <% } %>
+                </select>
+                <select id="rankingMonth" style="padding: 8px; margin: 0 10px; border: 2px solid #FFC0CB; border-radius: 5px;">
+                    <% for(let m = 1; m <= 12; m++) { %>
+                        <option value="<%= m %>" <%= m === (new Date().getMonth() + 1) ? 'selected' : '' %>><%= m %>월</option>
+                    <% } %>
+                </select>
+                <button class="view-records-btn" onclick="loadRanking()" style="margin: 0 5px;">랭킹 조회</button>
+                <button class="action-button bonus-btn" onclick="awardBadges()" style="margin: 0 5px;">배지 수여</button>
+            </div>
+
+            <div id="rankingDisplay">
+                <p style="text-align: center; color: #666;">년월을 선택하고 '랭킹 조회' 버튼을 눌러주세요.</p>
+            </div>
+        </div>
+
+        <div class="admin-section">
             <h2 class="section-title">오늘의 단계 완료 현황</h2>
             <div id="stepsStatus">
                 <p style="text-align: center; color: #666;">로딩 중...</p>
@@ -1282,6 +1335,102 @@ window.onclick = function(event) {
         closeAllUserRecordsModal();
     }
 }
+
+    // 랭킹 조회
+    async function loadRanking() {
+        const year = document.getElementById('rankingYear').value;
+        const month = document.getElementById('rankingMonth').value;
+        
+        try {
+            const response = await fetch(`/admin/full-ranking?year=${year}&month=${month}`);
+            const result = await response.json();
+            
+            if (result.success && result.rankings.length > 0) {
+                displayRanking(result.rankings, year, month);
+            } else {
+                document.getElementById('rankingDisplay').innerHTML = 
+                    `<p style="text-align: center; color: #666;">${year}년 ${month}월에는 훈련 기록이 없습니다.</p>`;
+            }
+        } catch (error) {
+            console.error('랭킹 조회 오류:', error);
+            alert('랭킹 조회에 실패했습니다.');
+        }
+    }
+
+    function displayRanking(rankings, year, month) {
+        const html = `
+            <h3 style="margin-bottom: 15px;">${year}년 ${month}월 전체 랭킹 (총 ${rankings.length}명)</h3>
+            <table class="ranking-table">
+                <thead>
+                    <tr>
+                        <th>순위</th>
+                        <th>이름</th>
+                        <th>총점</th>
+                        <th>정답률</th>
+                        <th>완벽</th>
+                        <th>근사</th>
+                        <th>오답</th>
+                        <th>시도</th>
+                        <th>배지</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rankings.map((rank, index) => `
+                        <tr class="ranking-row-${Math.min(index + 1, 6)}">
+                            <td>
+                                ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index < 5 ? '🎖️' : ''}
+                                ${index + 1}위
+                            </td>
+                            <td><strong>${rank.username}</strong></td>
+                            <td><strong style="color: #FFC0CB;">${rank.total_score}점</strong></td>
+                            <td>${rank.accuracy}%</td>
+                            <td>${rank.perfect_count}</td>
+                            <td>${rank.close_count}</td>
+                            <td>${rank.wrong_count}</td>
+                            <td>${rank.total_attempts}</td>
+                            <td>
+                                ${index === 0 ? '🥇 골드' : index === 1 ? '🥈 실버' : index === 2 ? '🥉 브론즈' : index < 5 ? '🎖️ 우수' : '-'}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+        
+        document.getElementById('rankingDisplay').innerHTML = html;
+    }
+
+    // 배지 수여
+    async function awardBadges() {
+        const year = document.getElementById('rankingYear').value;
+        const month = document.getElementById('rankingMonth').value;
+        
+        if (!confirm(`${year}년 ${month}월 상위 5명에게 배지를 수여하시겠습니까?`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch('/admin/award-badges', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ year: parseInt(year), month: parseInt(month) })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('배지가 성공적으로 수여되었습니다!');
+                loadRanking(); // 다시 로드
+            } else {
+                alert(result.message || '배지 수여에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('배지 수여 오류:', error);
+            alert('서버와의 통신에 실패했습니다.');
+        }
+    }
 
     // Close dropdown when clicking outside
     document.addEventListener('click', function(event) {
