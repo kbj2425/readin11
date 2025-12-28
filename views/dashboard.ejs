@@ -215,7 +215,9 @@
         <div class="logo">READIN</div>
         <div class="user-menu">
             <div class="username" onclick="toggleDropdown()"><%= username %> ▼</div>
-            <div class="dropdown" id="dropdown">
+          <div class="dropdown" id="dropdown">
+                <a href="/ranking">🏆 랭킹</a>
+                <a href="/my-badges">🎖️ 내 배지</a>
                 <a href="/change-password">비밀번호 변경</a>
                 <a href="/logout">로그아웃</a>
             </div>
@@ -223,6 +225,12 @@
     </div>
 
     <div class="container">
+       <div class="stats-card" style="text-align: center; background: linear-gradient(135deg, #FFD700, #FFA500); color: white;">
+            <h2 style="color: white;">🏆 이번 달 랭킹</h2>
+            <p style="margin: 15px 0; font-size: 1.2em;">내 순위를 확인하고 목표를 설정하세요!</p>
+            <a href="/ranking" style="display: inline-block; background: white; color: #FFA500; padding: 12px 30px; border-radius: 50px; text-decoration: none; font-weight: bold; margin-top: 10px;">랭킹 보러가기 →</a>
+        </div>
+
         <div class="stats-card">
             <h2>오늘의 집중력 훈련</h2>
             <div class="attempts-info">남은 도전 기회</div>
