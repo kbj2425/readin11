@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>월간 랭킹 - READIN</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #FFC0CB, #FFB6C1);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            color: #FFC0CB;
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .username {
+            color: #FFC0CB;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 10px 15px;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .username:hover {
+            background: #f0f0f0;
+        }
+
+        .dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            min-width: 150px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .dropdown.show {
+            display: block;
+        }
+
+        .dropdown a {
+            display: block;
+            padding: 10px 15px;
+            text-decoration: none;
+            color: #333;
+            transition: background 0.3s;
+        }
+
+        .dropdown a:hover {
+            background: #FFC0CB;
+            color: white;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .ranking-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .ranking-title {
+            text-align: center;
+            color: #333;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .ranking-subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .inactive-notice {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            color: #856404;
+        }
+
+        .inactive-notice h3 {
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .titles-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .title-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin: 5px;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .goal-section {
+            background: #e8f4f8;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .goal-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .goal-input input {
+            padding: 8px;
+            border: 2px solid #FFC0CB;
+            border-radius: 5px;
+            width: 100px;
+        }
+
+        .goal-input button {
+            background: #FFC0CB;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .progress-info {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .ranking-table {
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .rank-item {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .rank-item:hover {
+            transform: translateY(-3px);
+        }
+
+        .rank-number {
+            font-size: 2em;
+            font-weight: bold;
+            min-width: 80px;
+        }
+
+        .rank-1 { color: #FFD700; }
+        .rank-2 { color: #C0C0C0; }
+        .rank-3 { color: #CD7F32; }
+        .rank-4, .rank-5 { color: #FF69B4; }
+
+        .rank-username {
+            flex: 1;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .rank-score {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #FFC0CB;
+            margin-right: 20px;
+        }
+
+        .rank-details {
+            text-align: right;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .my-rank-section {
+            background: linear-gradient(135deg, #FFC0CB, #FF69B4);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .my-rank-section h3 {
+            margin-bottom: 15px;
+        }
+
+        .my-rank-number {
+            font-size: 3em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .back-button {
+            display: inline-block;
+            background: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            margin-top: 20px;
+        }
+
+        .back-button:hover {
+            background: #545b62;
+        }
+
+        @media (max-width: 768px) {
+            .rank-item {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .rank-number {
+                min-width: auto;
+                margin-bottom: 10px;
+            }
+
+            .rank-details {
+                text-align: center;
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">READIN</div>
+        <div class="user-menu">
+            <div class="username" onclick="toggleDropdown()"><%= username %> ▼</div>
+            <div class="dropdown" id="dropdown">
+                <a href="/dashboard">대시보드</a>
+                <a href="/my-badges">내 배지</a>
+                <a href="/change-password">비밀번호 변경</a>
+                <a href="/logout">로그아웃</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="ranking-card">
+            <h1 class="ranking-title">🏆 <%= currentMonth %> 랭킹</h1>
+            <p class="ranking-subtitle">최고의 집중력 마스터는 누구?</p>
+
+            <% if (!isActive) { %>
+                <div class="inactive-notice">
+                    <h3>⏰ 랭킹 시스템 준비 중</h3>
+                    <p><%= activationDate %>부터 월간 랭킹이 시작됩니다!</p>
+                    <p>그때까지 열심히 연습하세요 💪</p>
+                </div>
+            <% } else { %>
+
+                <% if (titles && titles.length > 0) { %>
+                <div class="titles-section">
+                    <h3>🎖️ 내 칭호</h3>
+                    <% titles.forEach(title => { %>
+                        <span class="title-badge"><%= title.icon %> <%= title.title %></span>
+                    <% }); %>
+                </div>
+                <% } %>
+
+                <div class="goal-section">
+                    <h3>🎯 이번 달 목표</h3>
+                    <% if (goal) { %>
+                        <p>목표 순위: <strong><%= goal.target_rank %>위</strong></p>
+                        <% if (myRank && myRank <= goal.target_rank) { %>
+                            <p class="progress-info" style="color: #28a745;">✅ 목표 달성! 현재 <%= myRank %>위</p>
+                        <% } else { %>
+                            <p class="progress-info" style="color: #dc3545;">📈 현재 <%= myRank %>위 (목표까지 <%= goal.target_rank - myRank %>단계)</p>
+                        <% } %>
+                    <% } else { %>
+                        <p>목표 순위를 설정하고 도전하세요!</p>
+                    <% } %>
+                    <div class="goal-input">
+                        <input type="number" id="targetRank" placeholder="목표 순위" min="1" value="<%= goal ? goal.target_rank : '' %>">
+                        <button onclick="setGoal()">목표 설정</button>
+                    </div>
+                </div>
+
+                <h2 style="margin: 30px 0 20px 0; color: #333;">🏅 Top 5</h2>
+                <div class="ranking-table">
+                    <% rankings.forEach((rank, index) => { %>
+                        <div class="rank-item">
+                            <div class="rank-number rank-<%= index + 1 %>">
+                                <% if (index === 0) { %>🥇
+                                <% } else if (index === 1) { %>🥈
+                                <% } else if (index === 2) { %>🥉
+                                <% } else if (index === 3 || index === 4) { %>🎖️
+                                <% } %>
+                                <%= index + 1 %>위
+                            </div>
+                            <div class="rank-username"><%= rank.username %></div>
+                            <div class="rank-score"><%= rank.total_score %>점</div>
+                            <div class="rank-details">
+                                정답률: <%= rank.accuracy %>%<br>
+                                완벽: <%= rank.perfect_count %> | 근사: <%= rank.close_count %><br>
+                                시도: <%= rank.total_attempts %>회
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+
+                <% if (myRank && myRank > 5) { %>
+                <div class="my-rank-section">
+                    <h3>📌 내 순위</h3>
+                    <div class="my-rank-number"><%= myRank %>위 / <%= totalUsers %>명</div>
+                    <% if (myData) { %>
+                        <p>내 점수: <%= myData.total_score %>점</p>
+                        <p>정답률: <%= myData.accuracy %>% | 시도: <%= myData.total_attempts %>회</p>
+                        <p>완벽: <%= myData.perfect_count %> | 근사: <%= myData.close_count %> | 오답: <%= myData.wrong_count %></p>
+                        <% if (rankings[4]) { %>
+                            <p style="margin-top: 15px;">
+                                5위까지: +<%= rankings[4].total_score - myData.total_score %>점 필요
+                            </p>
+                        <% } %>
+                    <% } %>
+                </div>
+                <% } %>
+
+            <% } %>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="/dashboard" class="back-button">대시보드로 돌아가기</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let dropdownTimeout;
+
+        function toggleDropdown() {
+            const dropdown = document.getElementById('dropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        document.querySelector('.user-menu').addEventListener('mouseenter', function() {
+            clearTimeout(dropdownTimeout);
+            document.getElementById('dropdown').classList.add('show');
+        });
+
+        document.querySelector('.user-menu').addEventListener('mouseleave', function() {
+            dropdownTimeout = setTimeout(function() {
+                document.getElementById('dropdown').classList.remove('show');
+            }, 300);
+        });
+
+        document.addEventListener('click', function(event) {
+            const userMenu = document.querySelector('.user-menu');
+            if (!userMenu.contains(event.target)) {
+                document.getElementById('dropdown').classList.remove('show');
+            }
+        });
+
+        async function setGoal() {
+            const targetRank = document.getElementById('targetRank').value;
+            
+            if (!targetRank || targetRank < 1) {
+                alert('올바른 순위를 입력해주세요.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/set-goal', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ targetRank: parseInt(targetRank) })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('목표가 설정되었습니다!');
+                    location.reload();
+                } else {
+                    alert(result.message || '목표 설정에 실패했습니다.');
+                }
+            } catch (error) {
+                alert('서버와의 통신에 실패했습니다.');
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
