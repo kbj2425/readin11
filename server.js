@@ -14,13 +14,21 @@ const memoryDB = {
     trainingRecords: [],
     dailyAttempts: [],
     settings: [],
-    stepCompletions: []
+    stepCompletions: [],
+    monthlyRankings: [],
+    badges: [],
+    titles: [],
+    personalGoals: []
 };
 
 let userIdCounter = 1;
 let recordIdCounter = 1;
 let attemptIdCounter = 1;
 let stepCompletionIdCounter = 1;
+let rankingIdCounter = 1;
+let badgeIdCounter = 1;
+let titleIdCounter = 1;
+let goalIdCounter = 1;
 
 // 쿼리 헬퍼 함수 (메모리 DB용)
 async function query(text, params = []) {
@@ -127,7 +135,7 @@ async function query(text, params = []) {
         return { rows: [{ id: newUser.id }] };
     }
     
-    if (text.includes('INSERT INTO training_records')) {
+ if (text.includes('INSERT INTO training_records')) {
         const newRecord = {
             id: recordIdCounter++,
             user_id: params[0],
@@ -138,7 +146,9 @@ async function query(text, params = []) {
             date: params[5],
             timestamp: params[6],
             difficulty_range: params[7],
-            bpm: params[8] || 100
+            bpm: params[8] || 100,
+            score: params[9] || 0,
+            answer_type: params[10] || 'wrong'
         };
         memoryDB.trainingRecords.push(newRecord);
         return { rows: [] };
@@ -364,6 +374,115 @@ function isCorrectAnswer(actual, answer) {
     return Math.abs(actual - answer) <= 1;
 }
 
+function isPerfectAnswer(actual, answer) {
+    return actual === answer;
+}
+
+function getAnswerScore(actual, answer) {
+    if (isPerfectAnswer(actual, answer)) {
+        return { score: 15, type: 'perfect' };
+    } else if (isCorrectAnswer(actual, answer)) {
+        return { score: 10, type: 'close' };
+    } else {
+        return { score: 0, type: 'wrong' };
+    }
+}
+
+// 월간 랭킹 계산
+function calculateMonthlyRanking(year, month) {
+    const targetMonth = `${year}-${String(month).padStart(2, '0')}`;
+    const users = memoryDB.users.filter(u => !u.is_admin);
+    
+    const rankings = users.map(user => {
+        const userRecords = memoryDB.trainingRecords.filter(r => 
+            r.user_id === user.id && r.date.startsWith(targetMonth)
+        );
+        
+        if (userRecords.length === 0) {
+            return {
+                user_id: user.id,
+                username: user.username,
+                total_score: 0,
+                perfect_count: 0,
+                close_count: 0,
+                wrong_count: 0,
+                total_attempts: 0,
+                accuracy: 0,
+                month: targetMonth
+            };
+        }
+        
+        const perfectCount = userRecords.filter(r => r.answer_type === 'perfect').length;
+        const closeCount = userRecords.filter(r => r.answer_type === 'close').length;
+        const wrongCount = userRecords.filter(r => r.answer_type === 'wrong').length;
+        const totalAttempts = userRecords.length;
+        
+        const accumulatedScore = (perfectCount * 15) + (closeCount * 10);
+        const accuracy = ((perfectCount + closeCount) / totalAttempts) * 100;
+        const totalScore = Math.round(accumulatedScore + accuracy);
+        
+        return {
+            user_id: user.id,
+            username: user.username,
+            total_score: totalScore,
+            perfect_count: perfectCount,
+            close_count: closeCount,
+            wrong_count: wrongCount,
+            total_attempts: totalAttempts,
+            accuracy: Math.round(accuracy * 10) / 10,
+            month: targetMonth
+        };
+    });
+    
+    return rankings.sort((a, b) => b.total_score - a.total_score);
+}
+
+// 칭호 확인
+function checkTitles(userId) {
+    const titles = [];
+    const user = memoryDB.users.find(u => u.id === userId);
+    if (!user) return titles;
+    
+    // 집중의 달인: 3개월 연속 1위
+    const recentMonths = getRecentMonths(3);
+    const consecutiveFirst = recentMonths.every(month => {
+        const ranking = calculateMonthlyRanking(parseInt(month.split('-')[0]), parseInt(month.split('-')[1]));
+        return ranking[0]?.user_id === userId;
+    });
+    if (consecutiveFirst) {
+        titles.push({ title: '집중의 달인', icon: '🏆', description: '3개월 연속 1위' });
+    }
+    
+    // 꾸준이: 한 달 동안 매일 완료 (30일)
+    const currentMonth = getTodayKST().substring(0, 7);
+    const monthRecords = memoryDB.trainingRecords.filter(r => 
+        r.user_id === userId && r.date.startsWith(currentMonth)
+    );
+    const uniqueDays = new Set(monthRecords.map(r => r.date)).size;
+    if (uniqueDays >= 30) {
+        titles.push({ title: '꾸준이', icon: '⭐', description: '한 달 매일 완료' });
+    }
+    
+    // 정확왕: 월 정답률 95% 이상
+    const ranking = calculateMonthlyRanking(parseInt(currentMonth.split('-')[0]), parseInt(currentMonth.split('-')[1]));
+    const userRank = ranking.find(r => r.user_id === userId);
+    if (userRank && userRank.accuracy >= 95) {
+        titles.push({ title: '정확왕', icon: '🎯', description: '정답률 95% 이상' });
+    }
+    
+    return titles;
+}
+
+function getRecentMonths(count) {
+    const months = [];
+    const now = new Date();
+    for (let i = 0; i < count; i++) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
+    }
+    return months;
+}
+
 // Middleware
 function requireAuth(req, res, next) {
     if (req.session.userId) {
@@ -494,7 +613,7 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         const attempts = attemptsResult.rows[0];
         const totalAttempts = attempts ? attempts.attempts : 0;
         const bonusAttempts = attempts ? attempts.bonus_attempts : 0;
-        const remainingAttempts = Math.max(0, 2 + bonusAttempts - totalAttempts);
+        const remainingAttempts = Math.max(0, 1 + bonusAttempts - totalAttempts);
         
         const recordsResult = await query("SELECT * FROM training_records WHERE user_id = $1 ORDER BY timestamp DESC LIMIT 50", [userId]);
         const records = recordsResult.rows;
@@ -538,7 +657,7 @@ app.get('/training', requireAuth, async (req, res) => {
         const attempts = attemptsResult.rows[0];
         const totalAttempts = attempts ? attempts.attempts : 0;
         const bonusAttempts = attempts ? attempts.bonus_attempts : 0;
-        const remainingAttempts = Math.max(0, 2 + bonusAttempts - totalAttempts);
+        const remainingAttempts = Math.max(0, 1 + bonusAttempts - totalAttempts);
         
         if (remainingAttempts <= 0) {
             res.redirect('/dashboard');
@@ -635,19 +754,20 @@ app.post('/submit-answer', requireAuth, async (req, res) => {
         const attempts = attemptsResult.rows[0];
         const totalAttempts = attempts ? attempts.attempts : 0;
         const bonusAttempts = attempts ? attempts.bonus_attempts : 0;
-        const remainingAttempts = Math.max(0, 2 + bonusAttempts - totalAttempts);
+        const remainingAttempts = Math.max(0, 1 + bonusAttempts - totalAttempts);
         
         if (remainingAttempts <= 0) {
             res.json({ success: false, message: '오늘의 도전 기회를 모두 사용했습니다.' });
             return;
         }
         
-        const isCorrect = isCorrectAnswer(parseInt(actualCount), parseInt(userAnswer));
+      const isCorrect = isCorrectAnswer(parseInt(actualCount), parseInt(userAnswer));
+        const answerResult = getAnswerScore(parseInt(actualCount), parseInt(userAnswer));
         
         await query(`
-            INSERT INTO training_records (user_id, actual_count, user_answer, is_correct, level, date, timestamp, difficulty_range, bpm) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        `, [userId, actualCount, userAnswer, isCorrect, req.session.level, today, kstTimestamp, difficultyRange.range, 100]);
+            INSERT INTO training_records (user_id, actual_count, user_answer, is_correct, level, date, timestamp, difficulty_range, bpm, score, answer_type) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        `, [userId, actualCount, userAnswer, isCorrect, req.session.level, today, kstTimestamp, difficultyRange.range, 100, answerResult.score, answerResult.type]);
         
         if (attempts) {
             await query("UPDATE daily_attempts SET attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND date = $2", [userId, today]);
@@ -1089,6 +1209,163 @@ app.get('/admin/today-steps', requireAdmin, async (req, res) => {
         console.error('단계 현황 조회 오류:', error);
         res.json({ success: false, data: [] });
     }
+});
+
+// 이번 달 랭킹 조회 (학생용)
+app.get('/ranking', requireAuth, (req, res) => {
+    if (req.session.isAdmin) {
+        res.redirect('/admin');
+        return;
+    }
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    
+    // 2026년 1월 1일 이전이면 접근 불가
+    if (currentYear < 2026 || (currentYear === 2026 && currentMonth < 1)) {
+        return res.render('ranking', {
+            username: req.session.username,
+            rankings: [],
+            myRank: null,
+            currentMonth: `${currentYear}년 ${currentMonth}월`,
+            isActive: false,
+            activationDate: '2026년 1월 1일'
+        });
+    }
+    
+    const rankings = calculateMonthlyRanking(currentYear, currentMonth);
+    const myRank = rankings.findIndex(r => r.user_id === req.session.userId) + 1;
+    const myData = rankings.find(r => r.user_id === req.session.userId);
+    
+    // 개인 목표 조회
+    const goal = memoryDB.personalGoals.find(g => 
+        g.user_id === req.session.userId && g.month === `${currentYear}-${String(currentMonth).padStart(2, '0')}`
+    );
+    
+    const titles = checkTitles(req.session.userId);
+    
+    res.render('ranking', {
+        username: req.session.username,
+        rankings: rankings.slice(0, 5),
+        myRank,
+        myData,
+        totalUsers: rankings.length,
+        currentMonth: `${currentYear}년 ${currentMonth}월`,
+        goal,
+        titles,
+        isActive: true
+    });
+});
+
+// 개인 목표 설정
+app.post('/set-goal', requireAuth, async (req, res) => {
+    if (req.session.isAdmin) {
+        res.json({ success: false, message: '관리자는 목표를 설정할 수 없습니다.' });
+        return;
+    }
+    
+    const { targetRank } = req.body;
+    const userId = req.session.userId;
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    
+    try {
+        const existingGoal = memoryDB.personalGoals.find(g => 
+            g.user_id === userId && g.month === currentMonth
+        );
+        
+        if (existingGoal) {
+            existingGoal.target_rank = parseInt(targetRank);
+            existingGoal.updated_at = new Date().toISOString();
+        } else {
+            memoryDB.personalGoals.push({
+                id: goalIdCounter++,
+                user_id: userId,
+                month: currentMonth,
+                target_rank: parseInt(targetRank),
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            });
+        }
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('목표 설정 오류:', error);
+        res.json({ success: false, message: '목표 설정에 실패했습니다.' });
+    }
+});
+
+// 전체 랭킹 조회 (관리자용)
+app.get('/admin/full-ranking', requireAdmin, (req, res) => {
+    const now = new Date();
+    const year = parseInt(req.query.year) || now.getFullYear();
+    const month = parseInt(req.query.month) || (now.getMonth() + 1);
+    
+    const rankings = calculateMonthlyRanking(year, month);
+    
+    res.json({
+        success: true,
+        rankings,
+        year,
+        month
+    });
+});
+
+// 배지 수여 (관리자용)
+app.post('/admin/award-badges', requireAdmin, async (req, res) => {
+    const { year, month } = req.body;
+    const targetMonth = `${year}-${String(month).padStart(2, '0')}`;
+    
+    try {
+        const rankings = calculateMonthlyRanking(year, month);
+        
+        memoryDB.badges = memoryDB.badges.filter(b => b.month !== targetMonth);
+        
+        const badgeTypes = [
+            { rank: 1, type: 'gold', name: '골드 배지', reward: '5,000원' },
+            { rank: 2, type: 'silver', name: '실버 배지', reward: '4,000원' },
+            { rank: 3, type: 'bronze', name: '브론즈 배지', reward: '3,000원' },
+            { rank: 4, type: 'excellence', name: '우수 배지', reward: '2,000원' },
+            { rank: 5, type: 'excellence', name: '우수 배지', reward: '1,000원' }
+        ];
+        
+        badgeTypes.forEach((badge, index) => {
+            if (rankings[index]) {
+                memoryDB.badges.push({
+                    id: badgeIdCounter++,
+                    user_id: rankings[index].user_id,
+                    username: rankings[index].username,
+                    rank: badge.rank,
+                    badge_type: badge.type,
+                    badge_name: badge.name,
+                    reward: badge.reward,
+                    month: targetMonth,
+                    awarded_at: new Date().toISOString()
+                });
+            }
+        });
+        
+        res.json({ success: true, message: '배지가 수여되었습니다.' });
+    } catch (error) {
+        console.error('배지 수여 오류:', error);
+        res.json({ success: false, message: '배지 수여에 실패했습니다.' });
+    }
+});
+
+// 내 배지 조회
+app.get('/my-badges', requireAuth, (req, res) => {
+    if (req.session.isAdmin) {
+        res.redirect('/admin');
+        return;
+    }
+    
+    const myBadges = memoryDB.badges.filter(b => b.user_id === req.session.userId);
+    
+    res.render('my-badges', {
+        username: req.session.username,
+        badges: myBadges.sort((a, b) => b.awarded_at.localeCompare(a.awarded_at))
+    });
 });
 
 app.get('/logout', (req, res) => {
