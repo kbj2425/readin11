@@ -99,6 +99,21 @@
             box-shadow: 0 10px 30px rgba(255, 105, 180, 0.4);
         }
 
+        .skip-button {
+            background: transparent;
+            color: #999;
+            border: none;
+            padding: 10px 20px;
+            font-size: 0.9em;
+            cursor: pointer;
+            margin-top: 20px;
+            text-decoration: underline;
+        }
+
+        .skip-button:hover {
+            color: #666;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 30px 20px;
@@ -136,6 +151,12 @@
         <button class="next-button" id="nextButton" onclick="goNext()">
             다음 단계로 →
         </button>
+
+        <br><br>
+
+        <button class="skip-button" onclick="skipStep()">
+            안구 회전 훈련을 하지 않아요
+        </button>
     </div>
 
     <script>
@@ -155,6 +176,33 @@
             
             if (!checkbox.checked) {
                 alert('체크박스를 선택해주세요.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/complete-step', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ step: 1 })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    window.location.href = '/step2-teacher';
+                } else {
+                    alert('저장에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('서버 오류가 발생했습니다.');
+            }
+        }
+
+        async function skipStep() {
+            if (!confirm('안구 회전 훈련을 건너뛰시겠습니까?')) {
                 return;
             }
 
