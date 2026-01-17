@@ -670,14 +670,11 @@ app.get('/training', requireAuth, async (req, res) => {
         const visualFeedbackResult = await query("SELECT value FROM settings WHERE key = $1", ['show_visual_feedback']);
         const showVisualFeedback = visualFeedbackResult.rows.length > 0 ? visualFeedbackResult.rows[0].value === '1' : true;
         
-      const difficultyRange = getDifficultyRange(req.session.level);
-        
         res.render('training', {
             username: req.session.username,
             actualCount,
             level: req.session.level,
-            showVisualFeedback,
-            difficultyRange
+            showVisualFeedback
         });
     } catch (error) {
         console.error('훈련 페이지 로딩 오류:', error);
