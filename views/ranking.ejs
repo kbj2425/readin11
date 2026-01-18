@@ -295,9 +295,12 @@
 
             <% if (!isActive) { %>
                 <div class="inactive-notice">
-                    <h3>⏰ 랭킹 시스템 준비 중</h3>
-                    <p><%= activationDate %>부터 월간 랭킹이 시작됩니다!</p>
-                    <p>그때까지 열심히 연습하세요 💪</p>
+                    <h3>⏰ 랭킹 시스템 점검 중</h3>
+                    <p><strong><%= activationDate %>부터 랭킹이 시작됩니다!</strong></p>
+                    <p>현재는 연습 기간입니다 💪</p>
+                    <p style="margin-top: 15px; font-size: 0.9em; color: #856404;">
+                        ※ 일정은 변경될 수 있습니다
+                    </p>
                 </div>
             <% } else { %>
 
