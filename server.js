@@ -1223,15 +1223,15 @@ app.get('/ranking', requireAuth, (req, res) => {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
     
-    // 2026년 1월 1일 이전이면 접근 불가
-    if (currentYear < 2026 || (currentYear === 2026 && currentMonth < 1)) {
+    // 2026년 2월 1일 이전이면 접근 불가
+    if (currentYear < 2026 || (currentYear === 2026 && currentMonth < 2)) {
         return res.render('ranking', {
             username: req.session.username,
             rankings: [],
             myRank: null,
             currentMonth: `${currentYear}년 ${currentMonth}월`,
             isActive: false,
-            activationDate: '2026년 1월 1일'
+            activationDate: '2026년 2월 1일'
         });
     }
     
