@@ -674,7 +674,8 @@ app.get('/training', requireAuth, async (req, res) => {
             username: req.session.username,
             actualCount,
             level: req.session.level,
-            showVisualFeedback
+            showVisualFeedback,
+            difficultyRange
         });
     } catch (error) {
         console.error('훈련 페이지 로딩 오류:', error);
