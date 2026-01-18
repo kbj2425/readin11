@@ -59,40 +59,49 @@
             margin: 20px 0;
         }
 
-        .main-button {
-            background: #FFC0CB;
-            color: white;
+        .button-container {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 40px;
+        }
+
+        .action-button {
+            flex: 1;
+            max-width: 250px;
+            padding: 20px 40px;
             border: none;
-            padding: 20px 50px;
-            border-radius: 50px;
-            font-size: 1.3em;
+            border-radius: 15px;
+            font-size: 1.2em;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s;
-            margin: 10px;
             text-decoration: none;
-            display: inline-block;
+            display: block;
+            text-align: center;
         }
 
-        .main-button:hover {
-            background: #FF69B4;
+        .complete-button {
+            background: linear-gradient(135deg, #FFC0CB, #FF69B4);
+            color: white;
+            box-shadow: 0 5px 15px rgba(255, 105, 180, 0.3);
+        }
+
+        .complete-button:hover {
             transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(255, 105, 180, 0.4);
+            box-shadow: 0 8px 20px rgba(255, 105, 180, 0.4);
         }
 
         .skip-button {
-            background: transparent;
-            color: #999;
-            border: none;
-            padding: 10px 20px;
-            font-size: 0.9em;
-            cursor: pointer;
-            margin-top: 20px;
-            text-decoration: underline;
+            background: #6c757d;
+            color: white;
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
         }
 
         .skip-button:hover {
-            color: #666;
+            background: #545b62;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(108, 117, 125, 0.4);
         }
 
         @media (max-width: 768px) {
@@ -128,15 +137,14 @@
             읽기와 듣기 트레이닝을 진행해주세요
         </div>
 
-        <button class="main-button" onclick="goToIcksPlus()">
-            읽쓰 플러스로 가기 →
-        </button>
-
-        <br>
-
-        <button class="skip-button" onclick="skipTraining()">
-            읽기,듣기 트레이닝을 하지 않아요
-        </button>
+        <div class="button-container">
+            <button class="action-button complete-button" onclick="goToIcksPlus()">
+                읽쓰 플러스로 가기
+            </button>
+            <button class="action-button skip-button" onclick="skipTraining()">
+                하지 않아요
+            </button>
+        </div>
     </div>
 
     <script>
