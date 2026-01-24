@@ -162,6 +162,11 @@
                 window.location.href = '/logout';
             }, 1000);
         }
+
+// 페이지 이탈 시 자동 로그아웃
+    window.addEventListener('beforeunload', function(e) {
+        navigator.sendBeacon('/logout');
+    });
     </script>
 </body>
 </html>
