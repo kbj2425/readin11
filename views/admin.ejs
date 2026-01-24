@@ -661,7 +661,14 @@
                     <% } %>
                 </select>
                 <button class="view-records-btn" onclick="loadRanking()" style="margin: 0 5px;">랭킹 조회</button>
-                <button class="action-button bonus-btn" onclick="awardBadges()" style="margin: 0 5px;">배지 수여</button>
+                <button class="action-button bonus-btn" onclick="awardBadges()" style="margin: 0 5px;">배지 수여 (수동)</button>
+            </div>
+
+            <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #17a2b8;">
+                <p style="color: #0c5460; margin: 0;">
+                    <strong>💡 자동 배지 수여:</strong> 매달 말일 23:59에 자동으로 상위 5명에게 배지가 수여됩니다.<br>
+                    <strong>⚠️ 수동 버튼:</strong> 긴급 상황이나 테스트용으로만 사용하세요.
+                </p>
             </div>
 
             <div id="rankingDisplay">
