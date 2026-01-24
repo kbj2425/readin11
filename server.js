@@ -320,6 +320,66 @@ async function initializeDatabase() {
     }
 }
 
+// 자동 배지 수여 함수
+async function autoAwardBadges() {
+    const now = new Date();
+    const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    
+    const year = kstTime.getFullYear();
+    const month = kstTime.getMonth() + 1;
+    const day = kstTime.getDate();
+    
+    // 이번 달 말일 계산
+    const lastDay = new Date(year, month, 0).getDate();
+    
+    // 오늘이 말일이고, 시간이 23:59인 경우
+    const hour = kstTime.getHours();
+    const minute = kstTime.getMinutes();
+    
+    if (day === lastDay && hour === 23 && minute === 59) {
+        console.log(`\n🎖️ === 자동 배지 수여 시작 (${year}년 ${month}월) ===`);
+        
+        try {
+            const rankings = calculateMonthlyRanking(year, month);
+            const targetMonth = `${year}-${String(month).padStart(2, '0')}`;
+            
+            // 기존 배지 삭제
+            memoryDB.badges = memoryDB.badges.filter(b => b.month !== targetMonth);
+            
+            // 상위 5명에게 배지 수여
+            const badgeTypes = [
+                { rank: 1, type: 'gold', name: '골드 배지', reward: '5,000원' },
+                { rank: 2, type: 'silver', name: '실버 배지', reward: '4,000원' },
+                { rank: 3, type: 'bronze', name: '브론즈 배지', reward: '3,000원' },
+                { rank: 4, type: 'excellence', name: '우수 배지', reward: '2,000원' },
+                { rank: 5, type: 'excellence', name: '우수 배지', reward: '1,000원' }
+            ];
+            
+            badgeTypes.forEach((badge, index) => {
+                if (rankings[index]) {
+                    memoryDB.badges.push({
+                        id: badgeIdCounter++,
+                        user_id: rankings[index].user_id,
+                        username: rankings[index].username,
+                        rank: badge.rank,
+                        badge_type: badge.type,
+                        badge_name: badge.name,
+                        reward: badge.reward,
+                        month: targetMonth,
+                        awarded_at: new Date().toISOString()
+                    });
+                    
+                    console.log(`🏆 ${badge.rank}위: ${rankings[index].username} - ${badge.badge_name}`);
+                }
+            });
+            
+            console.log(`✅ 자동 배지 수여 완료!\n`);
+        } catch (error) {
+            console.error('❌ 자동 배지 수여 실패:', error);
+        }
+    }
+}
+
 // Helper functions
 function getTodayKST() {
     const now = new Date();
@@ -1425,9 +1485,17 @@ initializeDatabase().then(() => {
                 });
         }, 10 * 60 * 1000); // 10분마다
         
-        console.log('⏰ Keep-Alive 시스템 활성화 (10분 간격)');
+  console.log('⏰ Keep-Alive 시스템 활성화 (10분 간격)');
         console.log('🔄 서버가 자동으로 깨어있는 상태를 유지합니다');
         console.log('💡 권장: UptimeRobot(https://uptimerobot.com)으로 외부 모니터링 추가\n');
+        
+        // 자동 배지 수여 스케줄러 (매일 23:59 체크)
+        setInterval(() => {
+            autoAwardBadges();
+        }, 60 * 1000); // 1분마다 체크
+        
+        console.log('🏆 자동 배지 수여 시스템 활성화 (매달 말일 23:59)');
+        console.log('📅 배지는 자동으로 상위 5명에게 수여됩니다\n');
     });
 }).catch(error => {
     console.error('서버 시작 실패:', error);
