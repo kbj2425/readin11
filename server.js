@@ -1378,6 +1378,15 @@ app.get('/logout', (req, res) => {
     });
 });
 
+app.post('/logout', (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('세션 삭제 실패:', err);
+        }
+        res.status(200).send('OK');
+    });
+});
+
 // 종료 시 정리
 process.on('SIGINT', () => {
     console.log('\n🛑 서버 종료 중...');
