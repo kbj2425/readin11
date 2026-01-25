@@ -293,7 +293,7 @@
             <h1 class="ranking-title">🏆 <%= currentMonth %> 랭킹</h1>
             <p class="ranking-subtitle">최고의 집중력 마스터는 누구?</p>
 
-            <% if (!isActive) { %>
+<% if (!isActive) { %>
                 <div class="inactive-notice">
                     <h3>⏰ 랭킹 시스템 점검 중</h3>
                     <p><strong><%= activationDate %>부터 랭킹이 시작됩니다!</strong></p>
@@ -303,6 +303,74 @@
                     </p>
                 </div>
             <% } else { %>
+
+                <!-- 랭킹 계산 방식 & 보상 안내 -->
+                <div style="background: #f8f9fa; padding: 25px; border-radius: 15px; margin-bottom: 30px; border: 2px solid #FFC0CB;">
+                    <h3 style="color: #333; margin-bottom: 20px; text-align: center;">📊 랭킹 계산 방식</h3>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <h4 style="color: #FFC0CB; margin-bottom: 15px;">🎯 점수 계산</h4>
+                        <div style="font-size: 1.1em; line-height: 1.8;">
+                            <p><strong>월간 점수 = 누적 점수 + (정답률 × 100)</strong></p>
+                            <ul style="margin-top: 10px; margin-left: 20px;">
+                                <li><strong>완벽 정답</strong> (정확히 일치): <span style="color: #28a745; font-weight: bold;">+15점</span></li>
+                                <li><strong>근사 정답</strong> (±1 범위): <span style="color: #17a2b8; font-weight: bold;">+10점</span></li>
+                                <li><strong>오답</strong>: <span style="color: #dc3545; font-weight: bold;">+0점</span></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <h4 style="color: #FFC0CB; margin-bottom: 15px;">💡 예시</h4>
+                        <div style="background: #f0f8ff; padding: 15px; border-radius: 8px; border-left: 4px solid #17a2b8;">
+                            <p style="margin-bottom: 8px;"><strong>김철수 (20일 참여)</strong></p>
+                            <p style="margin: 5px 0;">• 완벽 정답: 15회 → 15 × 15 = 225점</p>
+                            <p style="margin: 5px 0;">• 근사 정답: 3회 → 3 × 10 = 30점</p>
+                            <p style="margin: 5px 0;">• 오답: 2회 → 2 × 0 = 0점</p>
+                            <p style="margin: 5px 0;">• 정답률: (15+3)/20 = 90%</p>
+                            <p style="margin-top: 10px; font-size: 1.2em; color: #FFC0CB;"><strong>→ 최종 점수: 255 + 90 = 345점</strong></p>
+                        </div>
+                    </div>
+
+                    <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 20px; border-radius: 10px; color: white;">
+                        <h4 style="margin-bottom: 15px; text-align: center;">🏆 월간 보상</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; text-align: center;">
+                            <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px;">
+                                <div style="font-size: 2em;">🥇</div>
+                                <div style="font-weight: bold; margin: 5px 0;">1위</div>
+                                <div>골드 배지</div>
+                                <div style="font-size: 1.2em; font-weight: bold; margin-top: 5px;">5,000원</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px;">
+                                <div style="font-size: 2em;">🥈</div>
+                                <div style="font-weight: bold; margin: 5px 0;">2위</div>
+                                <div>실버 배지</div>
+                                <div style="font-size: 1.2em; font-weight: bold; margin-top: 5px;">4,000원</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px;">
+                                <div style="font-size: 2em;">🥉</div>
+                                <div style="font-weight: bold; margin: 5px 0;">3위</div>
+                                <div>브론즈 배지</div>
+                                <div style="font-size: 1.2em; font-weight: bold; margin-top: 5px;">3,000원</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px;">
+                                <div style="font-size: 2em;">🎖️</div>
+                                <div style="font-weight: bold; margin: 5px 0;">4위</div>
+                                <div>우수 배지</div>
+                                <div style="font-size: 1.2em; font-weight: bold; margin-top: 5px;">2,000원</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px;">
+                                <div style="font-size: 2em;">🎖️</div>
+                                <div style="font-weight: bold; margin: 5px 0;">5위</div>
+                                <div>우수 배지</div>
+                                <div style="font-size: 1.2em; font-weight: bold; margin-top: 5px;">1,000원</div>
+                            </div>
+                        </div>
+                        <p style="text-align: center; margin-top: 15px; font-size: 0.95em;">
+                            ※ 배지는 매달 말일에 자동으로 수여됩니다
+                        </p>
+                    </div>
+                </div>
 
                 <% if (titles && titles.length > 0) { %>
                 <div class="titles-section">
