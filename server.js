@@ -329,6 +329,11 @@ async function autoAwardBadges() {
     const month = kstTime.getMonth() + 1;
     const day = kstTime.getDate();
     
+    // 2026년 3월 이전에는 배지 수여 안 함
+    if (year < 2026 || (year === 2026 && month < 3)) {
+        return;
+    }
+    
     // 이번 달 말일 계산
     const lastDay = new Date(year, month, 0).getDate();
     
@@ -1283,15 +1288,15 @@ app.get('/ranking', requireAuth, (req, res) => {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
     
-    // 2026년 2월 1일 이전이면 접근 불가
-    if (currentYear < 2026 || (currentYear === 2026 && currentMonth < 2)) {
+    // 2026년 3월 1일 이전이면 접근 불가
+    if (currentYear < 2026 || (currentYear === 2026 && currentMonth < 3)) {
         return res.render('ranking', {
             username: req.session.username,
             rankings: [],
             myRank: null,
             currentMonth: `${currentYear}년 ${currentMonth}월`,
             isActive: false,
-            activationDate: '2026년 2월 1일'
+            activationDate: '2026년 3월 1일'
         });
     }
     
