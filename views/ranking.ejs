@@ -296,9 +296,16 @@
 <% if (!isActive) { %>
                 <div class="inactive-notice">
                     <h3>⏰ 랭킹 시스템 점검 중</h3>
-                    <p><strong><%= activationDate %>부터 랭킹이 시작됩니다!</strong></p>
-                    <p>현재는 연습 기간입니다 💪</p>
-                    <p style="margin-top: 15px; font-size: 0.9em; color: #856404;">
+                    <p style="font-size: 1.2em; margin: 15px 0;"><strong><%= activationDate %>부터 랭킹이 시작됩니다!</strong></p>
+                    <p style="margin: 10px 0;">현재는 <strong>연습 기간</strong>입니다 💪</p>
+                    
+                    <div style="background: rgba(255,255,255,0.8); padding: 20px; border-radius: 10px; margin-top: 20px;">
+                        <p style="color: #0c5460; margin-bottom: 10px;">📅 <strong>3월부터 본격 시작!</strong></p>
+                        <p style="color: #0c5460; margin-bottom: 10px;">🏆 첫 배지 수여: 2026년 3월 31일</p>
+                        <p style="color: #0c5460;">✨ 지금은 열심히 연습하고 실력을 쌓으세요!</p>
+                    </div>
+                    
+                    <p style="margin-top: 20px; font-size: 0.9em; color: #856404;">
                         ※ 일정은 변경될 수 있습니다
                     </p>
                 </div>
@@ -366,8 +373,9 @@
                                 <div style="font-size: 1.2em; font-weight: bold; margin-top: 5px;">1,000원</div>
                             </div>
                         </div>
-                        <p style="text-align: center; margin-top: 15px; font-size: 0.95em;">
-                            ※ 배지는 매달 말일에 자동으로 수여됩니다
+                           <p style="text-align: center; margin-top: 15px; font-size: 0.95em;">
+                            ※ 배지는 매달 말일 23:59에 자동으로 수여됩니다<br>
+                            (첫 자동 지급: 2026년 3월 31일)
                         </p>
                     </div>
                 </div>
