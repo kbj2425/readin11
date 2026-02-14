@@ -1476,23 +1476,13 @@ initializeDatabase().then(() => {
         console.log(`🎵 소리 재생 속도: 100 BPM`);
         console.log(`===============================================\n`);
         
-        // Keep-Alive 시스템 (10분마다 자체 ping)
-        setInterval(() => {
-            const url = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
-            
-            fetch(`${url}/health`)
-                .then(res => res.json())
-                .then(data => {
-                    console.log(`✅ Keep-Alive: ${data.timestamp} (Uptime: ${data.uptime}초, Users: ${data.users}, Records: ${data.records})`);
-                })
-                .catch(err => {
-                    console.log(`⚠️ Keep-Alive 실패: ${err.message}`);
-                });
-        }, 10 * 60 * 1000); // 10분마다
+              // Keep-Alive 시스템 비활성화 (UptimeRobot 사용)
+        // 외부 모니터링 서비스(UptimeRobot, Freshping 등)가 
+        // 서버를 깨어있게 유지합니다.
         
-  console.log('⏰ Keep-Alive 시스템 활성화 (10분 간격)');
-        console.log('🔄 서버가 자동으로 깨어있는 상태를 유지합니다');
-        console.log('💡 권장: UptimeRobot(https://uptimerobot.com)으로 외부 모니터링 추가\n');
+        console.log('⏰ Keep-Alive 시스템: 외부 모니터링 사용 (UptimeRobot 등)');
+        console.log('🔄 서버는 외부 모니터링 서비스로 깨어있는 상태 유지');
+        console.log('💡 UptimeRobot, Freshping, Better Uptime 권장\n');
         
         // 자동 배지 수여 스케줄러 (매일 23:59 체크)
         setInterval(() => {
