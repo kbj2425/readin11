@@ -4,11 +4,9 @@ const bcrypt = require('bcrypt');
 const bodyParser = require('body-parser');
 const path = require('path');
 const fetch = require('node-fetch');
-const fs = require('fs').promises;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, 'data.json');
 
 // 메모리 기반 데이터 저장소 (서버 재시작시 초기화됨)
 const memoryDB = {
@@ -67,6 +65,21 @@ async function query(text, params = []) {
         return { rows: attempt ? [attempt] : [] };
     }
     
+    // 단계 완료 조회
+    if (text.includes('SELECT') && text.includes('FROM step_completions')) {
+        if (text.includes('WHERE user_id') && text.includes('AND date')) {
+            const completions = memoryDB.stepCompletions.filter(sc => 
+                sc.user_id === params[0] && sc.date === params[1]
+            );
+            return { rows: completions };
+        }
+        
+        if (text.includes('WHERE date')) {
+            const completions = memoryDB.stepCompletions.filter(sc => sc.date === params[0]);
+            return { rows: completions };
+        }
+    }
+    
     if (text.includes('SELECT') && text.includes('FROM training_records')) {
         if (text.includes('JOIN users')) {
             // 날짜별 조회
@@ -122,7 +135,7 @@ async function query(text, params = []) {
     }
     
     // INSERT 쿼리 시뮬레이션
-if (text.includes('INSERT INTO users')) {
+    if (text.includes('INSERT INTO users')) {
         const newUser = {
             id: userIdCounter++,
             username: params[0],
@@ -134,11 +147,10 @@ if (text.includes('INSERT INTO users')) {
             last_login: null
         };
         memoryDB.users.push(newUser);
-        saveDataToFile();
         return { rows: [{ id: newUser.id }] };
     }
     
-if (text.includes('INSERT INTO training_records')) {
+    if (text.includes('INSERT INTO training_records')) {
         const newRecord = {
             id: recordIdCounter++,
             user_id: params[0],
@@ -154,11 +166,10 @@ if (text.includes('INSERT INTO training_records')) {
             answer_type: params[10] || 'wrong'
         };
         memoryDB.trainingRecords.push(newRecord);
-        saveDataToFile();
         return { rows: [] };
     }
     
-   if (text.includes('INSERT INTO daily_attempts')) {
+    if (text.includes('INSERT INTO daily_attempts')) {
         const newAttempt = {
             id: attemptIdCounter++,
             user_id: params[0],
@@ -167,11 +178,10 @@ if (text.includes('INSERT INTO training_records')) {
             bonus_attempts: params.length > 2 ? params[2] : 0
         };
         memoryDB.dailyAttempts.push(newAttempt);
-        saveDataToFile();
         return { rows: [] };
     }
     
-   if (text.includes('INSERT') && text.includes('settings')) {
+    if (text.includes('INSERT') && text.includes('settings')) {
         const existing = memoryDB.settings.find(s => s.key === params[0]);
         if (!existing) {
             const newSetting = {
@@ -181,12 +191,11 @@ if (text.includes('INSERT INTO training_records')) {
                 updated_by: params[3] || 'system'
             };
             memoryDB.settings.push(newSetting);
-            saveDataToFile();
         }
         return { rows: [] };
     }
     
-   if (text.includes('INSERT INTO step_completions')) {
+    if (text.includes('INSERT INTO step_completions')) {
         const newCompletion = {
             id: stepCompletionIdCounter++,
             user_id: params[0],
@@ -199,7 +208,6 @@ if (text.includes('INSERT INTO training_records')) {
             completed_at: new Date().toISOString()
         };
         memoryDB.stepCompletions.push(newCompletion);
-        saveDataToFile();
         return { rows: [] };
     }
     
@@ -207,23 +215,15 @@ if (text.includes('INSERT INTO training_records')) {
     if (text.includes('UPDATE users')) {
         if (text.includes('last_login')) {
             const user = memoryDB.users.find(u => u.id === params[0]);
-            if (user) {
-                user.last_login = new Date().toISOString();
-                saveDataToFile();
-            }
+            if (user) user.last_login = new Date().toISOString();
         }
         if (text.includes('SET level')) {
             const user = memoryDB.users.find(u => u.id === params[1]);
-            if (user) {
-                user.level = params[0];
-                saveDataToFile();
-            }
-        }       if (text.includes('SET password')) {
+            if (user) user.level = params[0];
+        }
+        if (text.includes('SET password')) {
             const user = memoryDB.users.find(u => u.id === params[1]);
-            if (user) {
-                user.password = params[0];
-                saveDataToFile();
-            }
+            if (user) user.password = params[0];
         }
         return { rows: [] };
     }
@@ -231,44 +231,22 @@ if (text.includes('INSERT INTO training_records')) {
     if (text.includes('UPDATE daily_attempts')) {
         if (text.includes('SET attempts')) {
             const attempt = memoryDB.dailyAttempts.find(a => a.user_id === params[0] && a.date === params[1]);
-            if (attempt) {
-                attempt.attempts++;
-                saveDataToFile();
-            }
+            if (attempt) attempt.attempts++;
         }
         if (text.includes('bonus_attempts')) {
             const attempt = memoryDB.dailyAttempts.find(a => a.user_id === params[0] && a.date === params[1]);
-            if (attempt) {
-                attempt.bonus_attempts++;
-                saveDataToFile();
-            }
+            if (attempt) attempt.bonus_attempts++;
         }
         return { rows: [] };
     }
     
-if (text.includes('UPDATE settings')) {
+    if (text.includes('UPDATE settings')) {
         const setting = memoryDB.settings.find(s => s.key === params[2]);
         if (setting) {
             setting.value = params[0];
             setting.updated_by = params[1];
-            saveDataToFile();
         }
         return { rows: [] };
-    }
-    
-    // 단계 완료 조회 추가
-    if (text.includes('SELECT') && text.includes('FROM step_completions')) {
-        if (text.includes('WHERE user_id') && text.includes('AND date')) {
-            const completions = memoryDB.stepCompletions.filter(sc => 
-                sc.user_id === params[0] && sc.date === params[1]
-            );
-            return { rows: completions };
-        }
-        
-        if (text.includes('WHERE date')) {
-            const completions = memoryDB.stepCompletions.filter(sc => sc.date === params[0]);
-            return { rows: completions };
-        }
     }
     
     if (text.includes('UPDATE step_completions')) {
@@ -279,27 +257,23 @@ if (text.includes('UPDATE settings')) {
             const stepNum = params[0];
             completion[`step${stepNum}`] = true;
             completion.completed_at = new Date().toISOString();
-            saveDataToFile();
         }
         return { rows: [] };
     }
     
     // DELETE 쿼리 시뮬레이션
-   if (text.includes('DELETE FROM training_records')) {
+    if (text.includes('DELETE FROM training_records')) {
         memoryDB.trainingRecords = memoryDB.trainingRecords.filter(r => r.user_id !== params[0]);
-        saveDataToFile();
         return { rows: [] };
     }
     
-  if (text.includes('DELETE FROM daily_attempts')) {
+    if (text.includes('DELETE FROM daily_attempts')) {
         memoryDB.dailyAttempts = memoryDB.dailyAttempts.filter(a => a.user_id !== params[0]);
-        saveDataToFile();
         return { rows: [] };
     }
     
-if (text.includes('DELETE FROM users')) {
+    if (text.includes('DELETE FROM users')) {
         memoryDB.users = memoryDB.users.filter(u => u.id !== params[0]);
-        saveDataToFile();
         return { rows: [] };
     }
     
@@ -318,24 +292,15 @@ app.use(session({
     saveUninitialized: false,
     cookie: { 
         secure: false,
-        maxAge: 30 * 60 * 1000  // 30분 (기존: 24시간)
+        maxAge: 30 * 60 * 1000  // 30분
     }
 }));
 
 // 데이터베이스 초기화
 async function initializeDatabase() {
     try {
-        console.log('🔧 데이터베이스 초기화 시작...');
-        
-        // 먼저 파일에서 데이터 복구 시도
-        const dataLoaded = await loadDataFromFile();
-        
-        if (dataLoaded) {
-            console.log('✅ 기존 데이터 복구 완료!');
-            return;
-        }
-        
-        console.log('📝 새로운 데이터베이스 생성 중...');
+        console.log('🔧 메모리 데이터베이스 초기화 시작...');
+        console.log('⚠️ 경고: 서버 재시작시 모든 데이터가 삭제됩니다!');
 
         // 관리자 계정 생성
         const hash = await bcrypt.hash('admin123', 10);
@@ -358,12 +323,9 @@ async function initializeDatabase() {
             { key: 'show_visual_feedback', value: '1', description: '훈련 중 시각적 피드백 표시 여부', updated_by: 'system' }
         ];
 
-memoryDB.settings = defaultSettings;
+        memoryDB.settings = defaultSettings;
 
-        console.log('🎉 데이터베이스 초기화 완료!');
-        
-        // 초기 데이터 파일로 저장
-        await saveDataToFile();
+        console.log('🎉 메모리 데이터베이스 초기화 완료!');
     } catch (error) {
         console.error('❌ 데이터베이스 초기화 실패:', error);
         process.exit(1);
@@ -432,83 +394,6 @@ async function autoAwardBadges() {
         } catch (error) {
             console.error('❌ 자동 배지 수여 실패:', error);
         }
-    }
-}
-
-// 데이터를 파일로 저장
-async function saveDataToFile() {
-    try {
-        const data = {
-            users: memoryDB.users,
-            trainingRecords: memoryDB.trainingRecords,
-            dailyAttempts: memoryDB.dailyAttempts,
-            settings: memoryDB.settings,
-            stepCompletions: memoryDB.stepCompletions,
-            monthlyRankings: memoryDB.monthlyRankings,
-            badges: memoryDB.badges,
-            titles: memoryDB.titles,
-            personalGoals: memoryDB.personalGoals,
-            counters: {
-                userIdCounter,
-                recordIdCounter,
-                attemptIdCounter,
-                stepCompletionIdCounter,
-                rankingIdCounter,
-                badgeIdCounter,
-                titleIdCounter,
-                goalIdCounter
-            }
-        };
-        
-        await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
-        console.log('💾 데이터 저장 완료:', new Date().toISOString());
-    } catch (error) {
-        console.error('❌ 데이터 저장 실패:', error);
-    }
-}
-
-// 데이터를 파일에서 불러오기
-async function loadDataFromFile() {
-    try {
-        const fileExists = await fs.access(DATA_FILE).then(() => true).catch(() => false);
-        
-        if (fileExists) {
-            const fileData = await fs.readFile(DATA_FILE, 'utf8');
-            const data = JSON.parse(fileData);
-            
-            memoryDB.users = data.users || [];
-            memoryDB.trainingRecords = data.trainingRecords || [];
-            memoryDB.dailyAttempts = data.dailyAttempts || [];
-            memoryDB.settings = data.settings || [];
-            memoryDB.stepCompletions = data.stepCompletions || [];
-            memoryDB.monthlyRankings = data.monthlyRankings || [];
-            memoryDB.badges = data.badges || [];
-            memoryDB.titles = data.titles || [];
-            memoryDB.personalGoals = data.personalGoals || [];
-            
-            if (data.counters) {
-                userIdCounter = data.counters.userIdCounter || 1;
-                recordIdCounter = data.counters.recordIdCounter || 1;
-                attemptIdCounter = data.counters.attemptIdCounter || 1;
-                stepCompletionIdCounter = data.counters.stepCompletionIdCounter || 1;
-                rankingIdCounter = data.counters.rankingIdCounter || 1;
-                badgeIdCounter = data.counters.badgeIdCounter || 1;
-                titleIdCounter = data.counters.titleIdCounter || 1;
-                goalIdCounter = data.counters.goalIdCounter || 1;
-            }
-            
-            console.log('📂 데이터 파일에서 복구 완료!');
-            console.log(`   - 사용자: ${memoryDB.users.length}명`);
-            console.log(`   - 훈련 기록: ${memoryDB.trainingRecords.length}개`);
-            console.log(`   - 배지: ${memoryDB.badges.length}개`);
-            return true;
-        } else {
-            console.log('📁 데이터 파일 없음 - 새로 시작');
-            return false;
-        }
-    } catch (error) {
-        console.error('❌ 데이터 로드 실패:', error);
-        return false;
     }
 }
 
@@ -875,6 +760,57 @@ app.get('/training', requireAuth, async (req, res) => {
     }
 });
 
+app.post('/submit-answer', requireAuth, async (req, res) => {
+    if (req.session.isAdmin) {
+        res.json({ success: false, message: '관리자는 훈련에 참여할 수 없습니다.' });
+        return;
+    }
+
+    const { actualCount, userAnswer } = req.body;
+    const today = getTodayKST();
+    const userId = req.session.userId;
+    const kstTimestamp = getKSTTimestamp();
+    const difficultyRange = getDifficultyRange(req.session.level);
+    
+    try {
+        const attemptsResult = await query("SELECT * FROM daily_attempts WHERE user_id = $1 AND date = $2", [userId, today]);
+        const attempts = attemptsResult.rows[0];
+        const totalAttempts = attempts ? attempts.attempts : 0;
+        const bonusAttempts = attempts ? attempts.bonus_attempts : 0;
+        const remainingAttempts = Math.max(0, 1 + bonusAttempts - totalAttempts);
+        
+        if (remainingAttempts <= 0) {
+            res.json({ success: false, message: '오늘의 도전 기회를 모두 사용했습니다.' });
+            return;
+        }
+        
+        const isCorrect = isCorrectAnswer(parseInt(actualCount), parseInt(userAnswer));
+        const answerResult = getAnswerScore(parseInt(actualCount), parseInt(userAnswer));
+        
+        await query(`
+            INSERT INTO training_records (user_id, actual_count, user_answer, is_correct, level, date, timestamp, difficulty_range, bpm, score, answer_type) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        `, [userId, actualCount, userAnswer, isCorrect, req.session.level, today, kstTimestamp, difficultyRange.range, 100, answerResult.score, answerResult.type]);
+        
+        if (attempts) {
+            await query("UPDATE daily_attempts SET attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND date = $2", [userId, today]);
+        } else {
+            await query("INSERT INTO daily_attempts (user_id, date, attempts) VALUES ($1, $2, 1)", [userId, today]);
+        }
+        
+        res.json({
+            success: true,
+            isCorrect,
+            actualCount,
+            userAnswer,
+            remainingAttempts: remainingAttempts - 1
+        });
+    } catch (error) {
+        console.error('훈련 답변 제출 오류:', error);
+        res.json({ success: false, message: '서버 오류가 발생했습니다.' });
+    }
+});
+
 // 1단계: 안구 회전 훈련
 app.get('/step1-eye', requireAuth, (req, res) => {
     if (req.session.isAdmin) {
@@ -930,55 +866,247 @@ app.get('/step5-reading', requireAuth, (req, res) => {
     });
 });
 
-app.post('/submit-answer', requireAuth, async (req, res) => {
+// 단계 완료 처리
+app.post('/complete-step', requireAuth, async (req, res) => {
     if (req.session.isAdmin) {
-        res.json({ success: false, message: '관리자는 훈련에 참여할 수 없습니다.' });
+        res.json({ success: false, message: '관리자는 단계를 완료할 수 없습니다.' });
         return;
     }
 
-    const { actualCount, userAnswer } = req.body;
-    const today = getTodayKST();
+    const { step } = req.body;
     const userId = req.session.userId;
-    const kstTimestamp = getKSTTimestamp();
-    const difficultyRange = getDifficultyRange(req.session.level);
+    const today = getTodayKST();
+    
+    console.log('=== 단계 완료 요청 ===');
+    console.log('userId:', userId, 'step:', step, 'today:', today);
     
     try {
-        const attemptsResult = await query("SELECT * FROM daily_attempts WHERE user_id = $1 AND date = $2", [userId, today]);
-        const attempts = attemptsResult.rows[0];
-        const totalAttempts = attempts ? attempts.attempts : 0;
-        const bonusAttempts = attempts ? attempts.bonus_attempts : 0;
-        const remainingAttempts = Math.max(0, 1 + bonusAttempts - totalAttempts);
+        // 오늘 날짜의 완료 기록 찾기
+        let completion = memoryDB.stepCompletions.find(sc => 
+            sc.user_id === userId && sc.date === today
+        );
         
-        if (remainingAttempts <= 0) {
-            res.json({ success: false, message: '오늘의 도전 기회를 모두 사용했습니다.' });
-            return;
-        }
-        
-      const isCorrect = isCorrectAnswer(parseInt(actualCount), parseInt(userAnswer));
-        const answerResult = getAnswerScore(parseInt(actualCount), parseInt(userAnswer));
-        
-        await query(`
-            INSERT INTO training_records (user_id, actual_count, user_answer, is_correct, level, date, timestamp, difficulty_range, bpm, score, answer_type) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        `, [userId, actualCount, userAnswer, isCorrect, req.session.level, today, kstTimestamp, difficultyRange.range, 100, answerResult.score, answerResult.type]);
-        
-        if (attempts) {
-            await query("UPDATE daily_attempts SET attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND date = $2", [userId, today]);
+        if (!completion) {
+            // 새로운 기록 생성
+            completion = {
+                id: stepCompletionIdCounter++,
+                user_id: userId,
+                date: today,
+                step1: step === 1,
+                step2: step === 2,
+                step3: step === 3,
+                step4: step === 4,
+                step5: step === 5,
+                completed_at: new Date().toISOString()
+            };
+            memoryDB.stepCompletions.push(completion);
+            console.log('✅ 새로운 완료 기록 생성:', completion);
         } else {
-            await query("INSERT INTO daily_attempts (user_id, date, attempts) VALUES ($1, $2, 1)", [userId, today]);
+            // 기존 기록 업데이트
+            completion[`step${step}`] = true;
+            completion.completed_at = new Date().toISOString();
+            console.log('✅ 기존 기록 업데이트:', completion);
         }
         
-        res.json({
-            success: true,
-            isCorrect,
-            actualCount,
-            userAnswer,
-            remainingAttempts: remainingAttempts - 1
-        });
+        res.json({ success: true });
     } catch (error) {
-        console.error('훈련 답변 제출 오류:', error);
+        console.error('❌ 단계 완료 처리 오류:', error);
         res.json({ success: false, message: '서버 오류가 발생했습니다.' });
     }
+});
+
+// 오늘의 단계 완료 현황 조회 (관리자용)
+app.get('/admin/today-steps', requireAdmin, async (req, res) => {
+    const today = getTodayKST();
+    
+    try {
+        const completions = memoryDB.stepCompletions.filter(sc => sc.date === today);
+        const users = memoryDB.users.filter(u => !u.is_admin);
+        
+        const results = users.map(user => {
+            const completion = completions.find(c => c.user_id === user.id);
+            return {
+                id: user.id,
+                username: user.username,
+                step1: completion?.step1 || false,
+                step2: completion?.step2 || false,
+                step3: completion?.step3 || false,
+                step4: completion?.step4 || false,
+                step5: completion?.step5 || false,
+                completed_count: [
+                    completion?.step1,
+                    completion?.step2,
+                    completion?.step3,
+                    completion?.step4,
+                    completion?.step5
+                ].filter(Boolean).length
+            };
+        });
+        
+        res.json({ success: true, data: results });
+    } catch (error) {
+        console.error('단계 현황 조회 오류:', error);
+        res.json({ success: false, data: [] });
+    }
+});
+
+// 이번 달 랭킹 조회 (학생용)
+app.get('/ranking', requireAuth, (req, res) => {
+    if (req.session.isAdmin) {
+        res.redirect('/admin');
+        return;
+    }
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    
+    // 2026년 3월 1일 이전이면 접근 불가
+    if (currentYear < 2026 || (currentYear === 2026 && currentMonth < 3)) {
+        return res.render('ranking', {
+            username: req.session.username,
+            rankings: [],
+            myRank: null,
+            currentMonth: `${currentYear}년 ${currentMonth}월`,
+            isActive: false,
+            activationDate: '2026년 3월 1일'
+        });
+    }
+    
+    const rankings = calculateMonthlyRanking(currentYear, currentMonth);
+    const myRank = rankings.findIndex(r => r.user_id === req.session.userId) + 1;
+    const myData = rankings.find(r => r.user_id === req.session.userId);
+    
+    // 개인 목표 조회
+    const goal = memoryDB.personalGoals.find(g => 
+        g.user_id === req.session.userId && g.month === `${currentYear}-${String(currentMonth).padStart(2, '0')}`
+    );
+    
+    const titles = checkTitles(req.session.userId);
+    
+    res.render('ranking', {
+        username: req.session.username,
+        rankings: rankings.slice(0, 5), // Top 5만
+        myRank,
+        myData,
+        totalUsers: rankings.length,
+        currentMonth: `${currentYear}년 ${currentMonth}월`,
+        goal,
+        titles,
+        isActive: true
+    });
+});
+
+// 개인 목표 설정
+app.post('/set-goal', requireAuth, async (req, res) => {
+    if (req.session.isAdmin) {
+        res.json({ success: false, message: '관리자는 목표를 설정할 수 없습니다.' });
+        return;
+    }
+    
+    const { targetRank } = req.body;
+    const userId = req.session.userId;
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    
+    try {
+        const existingGoal = memoryDB.personalGoals.find(g => 
+            g.user_id === userId && g.month === currentMonth
+        );
+        
+        if (existingGoal) {
+            existingGoal.target_rank = parseInt(targetRank);
+            existingGoal.updated_at = new Date().toISOString();
+        } else {
+            memoryDB.personalGoals.push({
+                id: goalIdCounter++,
+                user_id: userId,
+                month: currentMonth,
+                target_rank: parseInt(targetRank),
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            });
+        }
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('목표 설정 오류:', error);
+        res.json({ success: false, message: '목표 설정에 실패했습니다.' });
+    }
+});
+
+// 전체 랭킹 조회 (관리자용)
+app.get('/admin/full-ranking', requireAdmin, (req, res) => {
+    const now = new Date();
+    const year = parseInt(req.query.year) || now.getFullYear();
+    const month = parseInt(req.query.month) || (now.getMonth() + 1);
+    
+    const rankings = calculateMonthlyRanking(year, month);
+    
+    res.json({
+        success: true,
+        rankings,
+        year,
+        month
+    });
+});
+
+// 배지 수여 (관리자용)
+app.post('/admin/award-badges', requireAdmin, async (req, res) => {
+    const { year, month } = req.body;
+    const targetMonth = `${year}-${String(month).padStart(2, '0')}`;
+    
+    try {
+        const rankings = calculateMonthlyRanking(year, month);
+        
+        // 기존 배지 삭제
+        memoryDB.badges = memoryDB.badges.filter(b => b.month !== targetMonth);
+        
+        // 상위 5명에게 배지 수여
+        const badgeTypes = [
+            { rank: 1, type: 'gold', name: '골드 배지', reward: '5,000원' },
+            { rank: 2, type: 'silver', name: '실버 배지', reward: '4,000원' },
+            { rank: 3, type: 'bronze', name: '브론즈 배지', reward: '3,000원' },
+            { rank: 4, type: 'excellence', name: '우수 배지', reward: '2,000원' },
+            { rank: 5, type: 'excellence', name: '우수 배지', reward: '1,000원' }
+        ];
+        
+        badgeTypes.forEach((badge, index) => {
+            if (rankings[index]) {
+                memoryDB.badges.push({
+                    id: badgeIdCounter++,
+                    user_id: rankings[index].user_id,
+                    username: rankings[index].username,
+                    rank: badge.rank,
+                    badge_type: badge.type,
+                    badge_name: badge.name,
+                    reward: badge.reward,
+                    month: targetMonth,
+                    awarded_at: new Date().toISOString()
+                });
+            }
+        });
+        
+        res.json({ success: true, message: '배지가 수여되었습니다.' });
+    } catch (error) {
+        console.error('배지 수여 오류:', error);
+        res.json({ success: false, message: '배지 수여에 실패했습니다.' });
+    }
+});
+
+// 내 배지 조회
+app.get('/my-badges', requireAuth, (req, res) => {
+    if (req.session.isAdmin) {
+        res.redirect('/admin');
+        return;
+    }
+    
+    const myBadges = memoryDB.badges.filter(b => b.user_id === req.session.userId);
+    
+    res.render('my-badges', {
+        username: req.session.username,
+        badges: myBadges.sort((a, b) => b.awarded_at.localeCompare(a.awarded_at))
+    });
 });
 
 app.get('/admin', requireAdmin, async (req, res) => {
@@ -1320,247 +1448,6 @@ app.post('/admin/force-change-password', requireAdmin, async (req, res) => {
     }
 });
 
-// 단계 완료 처리
-app.post('/complete-step', requireAuth, async (req, res) => {
-    if (req.session.isAdmin) {
-        res.json({ success: false, message: '관리자는 단계를 완료할 수 없습니다.' });
-        return;
-    }
-
-    const { step } = req.body;
-    const userId = req.session.userId;
-    const today = getTodayKST();
-    
-    console.log('=== 단계 완료 요청 ===');
-    console.log('userId:', userId, 'step:', step, 'today:', today);
-    
-    try {
-        // 오늘 날짜의 완료 기록 찾기
-        let completion = memoryDB.stepCompletions.find(sc => 
-            sc.user_id === userId && sc.date === today
-        );
-        
-        if (!completion) {
-            // 새로운 기록 생성
-            completion = {
-                id: stepCompletionIdCounter++,
-                user_id: userId,
-                date: today,
-                step1: step === 1,
-                step2: step === 2,
-                step3: step === 3,
-                step4: step === 4,
-                step5: step === 5,
-                completed_at: new Date().toISOString()
-            };
-            memoryDB.stepCompletions.push(completion);
-            console.log('✅ 새로운 완료 기록 생성:', completion);
-        } else {
-            // 기존 기록 업데이트
-            completion[`step${step}`] = true;
-            completion.completed_at = new Date().toISOString();
-            console.log('✅ 기존 기록 업데이트:', completion);
-        }
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error('❌ 단계 완료 처리 오류:', error);
-        res.json({ success: false, message: '서버 오류가 발생했습니다.' });
-    }
-});
-
-// 오늘의 단계 완료 현황 조회 (관리자용)
-app.get('/admin/today-steps', requireAdmin, async (req, res) => {
-    const today = getTodayKST();
-    
-    try {
-        const completions = memoryDB.stepCompletions.filter(sc => sc.date === today);
-        const users = memoryDB.users.filter(u => !u.is_admin);
-        
-        const results = users.map(user => {
-            const completion = completions.find(c => c.user_id === user.id);
-            return {
-                id: user.id,
-                username: user.username,
-                step1: completion?.step1 || false,
-                step2: completion?.step2 || false,
-                step3: completion?.step3 || false,
-                step4: completion?.step4 || false,
-                step5: completion?.step5 || false,
-                completed_count: [
-                    completion?.step1,
-                    completion?.step2,
-                    completion?.step3,
-                    completion?.step4,
-                    completion?.step5
-                ].filter(Boolean).length
-            };
-        });
-        
-        res.json({ success: true, data: results });
-    } catch (error) {
-        console.error('단계 현황 조회 오류:', error);
-        res.json({ success: false, data: [] });
-    }
-});
-
-// 이번 달 랭킹 조회 (학생용)
-app.get('/ranking', requireAuth, (req, res) => {
-    if (req.session.isAdmin) {
-        res.redirect('/admin');
-        return;
-    }
-    
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-    
-    // 2026년 3월 1일 이전이면 접근 불가
-    if (currentYear < 2026 || (currentYear === 2026 && currentMonth < 3)) {
-        return res.render('ranking', {
-            username: req.session.username,
-            rankings: [],
-            myRank: null,
-            currentMonth: `${currentYear}년 ${currentMonth}월`,
-            isActive: false,
-            activationDate: '2026년 3월 1일'
-        });
-    }
-    
-    const rankings = calculateMonthlyRanking(currentYear, currentMonth);
-    const myRank = rankings.findIndex(r => r.user_id === req.session.userId) + 1;
-    const myData = rankings.find(r => r.user_id === req.session.userId);
-    
-    // 개인 목표 조회
-    const goal = memoryDB.personalGoals.find(g => 
-        g.user_id === req.session.userId && g.month === `${currentYear}-${String(currentMonth).padStart(2, '0')}`
-    );
-    
-    const titles = checkTitles(req.session.userId);
-    
-    res.render('ranking', {
-        username: req.session.username,
-        rankings: rankings.slice(0, 5),
-        myRank,
-        myData,
-        totalUsers: rankings.length,
-        currentMonth: `${currentYear}년 ${currentMonth}월`,
-        goal,
-        titles,
-        isActive: true
-    });
-});
-
-// 개인 목표 설정
-app.post('/set-goal', requireAuth, async (req, res) => {
-    if (req.session.isAdmin) {
-        res.json({ success: false, message: '관리자는 목표를 설정할 수 없습니다.' });
-        return;
-    }
-    
-    const { targetRank } = req.body;
-    const userId = req.session.userId;
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    
-    try {
-        const existingGoal = memoryDB.personalGoals.find(g => 
-            g.user_id === userId && g.month === currentMonth
-        );
-        
-        if (existingGoal) {
-            existingGoal.target_rank = parseInt(targetRank);
-            existingGoal.updated_at = new Date().toISOString();
-        } else {
-            memoryDB.personalGoals.push({
-                id: goalIdCounter++,
-                user_id: userId,
-                month: currentMonth,
-                target_rank: parseInt(targetRank),
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            });
-        }
-        
-        res.json({ success: true });
-    } catch (error) {
-        console.error('목표 설정 오류:', error);
-        res.json({ success: false, message: '목표 설정에 실패했습니다.' });
-    }
-});
-
-// 전체 랭킹 조회 (관리자용)
-app.get('/admin/full-ranking', requireAdmin, (req, res) => {
-    const now = new Date();
-    const year = parseInt(req.query.year) || now.getFullYear();
-    const month = parseInt(req.query.month) || (now.getMonth() + 1);
-    
-    const rankings = calculateMonthlyRanking(year, month);
-    
-    res.json({
-        success: true,
-        rankings,
-        year,
-        month
-    });
-});
-
-// 배지 수여 (관리자용)
-app.post('/admin/award-badges', requireAdmin, async (req, res) => {
-    const { year, month } = req.body;
-    const targetMonth = `${year}-${String(month).padStart(2, '0')}`;
-    
-    try {
-        const rankings = calculateMonthlyRanking(year, month);
-        
-        memoryDB.badges = memoryDB.badges.filter(b => b.month !== targetMonth);
-        
-        const badgeTypes = [
-            { rank: 1, type: 'gold', name: '골드 배지', reward: '5,000원' },
-            { rank: 2, type: 'silver', name: '실버 배지', reward: '4,000원' },
-            { rank: 3, type: 'bronze', name: '브론즈 배지', reward: '3,000원' },
-            { rank: 4, type: 'excellence', name: '우수 배지', reward: '2,000원' },
-            { rank: 5, type: 'excellence', name: '우수 배지', reward: '1,000원' }
-        ];
-        
-        badgeTypes.forEach((badge, index) => {
-            if (rankings[index]) {
-                memoryDB.badges.push({
-                    id: badgeIdCounter++,
-                    user_id: rankings[index].user_id,
-                    username: rankings[index].username,
-                    rank: badge.rank,
-                    badge_type: badge.type,
-                    badge_name: badge.name,
-                    reward: badge.reward,
-                    month: targetMonth,
-                    awarded_at: new Date().toISOString()
-                });
-            }
-        });
-        
-        res.json({ success: true, message: '배지가 수여되었습니다.' });
-    } catch (error) {
-        console.error('배지 수여 오류:', error);
-        res.json({ success: false, message: '배지 수여에 실패했습니다.' });
-    }
-});
-
-// 내 배지 조회
-app.get('/my-badges', requireAuth, (req, res) => {
-    if (req.session.isAdmin) {
-        res.redirect('/admin');
-        return;
-    }
-    
-    const myBadges = memoryDB.badges.filter(b => b.user_id === req.session.userId);
-    
-    res.render('my-badges', {
-        username: req.session.username,
-        badges: myBadges.sort((a, b) => b.awarded_at.localeCompare(a.awarded_at))
-    });
-});
-
 app.get('/logout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
@@ -1601,22 +1488,32 @@ initializeDatabase().then(() => {
         console.log(`💾 메모리 데이터베이스 사용 (서버 재시작시 데이터 삭제)`);
         console.log(`👑 관리자 계정: readin / admin123`);
         console.log(`🎵 소리 재생 속도: 100 BPM`);
+        console.log(`⏱️ 세션 만료: 로그인 후 30분`);
         console.log(`===============================================\n`);
         
-              // Keep-Alive 시스템 비활성화 (UptimeRobot 사용)
-        // 외부 모니터링 서비스(UptimeRobot, Freshping 등)가 
-        // 서버를 깨어있게 유지합니다.
-        
-        console.log('⏰ Keep-Alive 시스템: 외부 모니터링 사용 (UptimeRobot 등)');
-        console.log('🔄 서버는 외부 모니터링 서비스로 깨어있는 상태 유지');
-        console.log('💡 UptimeRobot, Freshping, Better Uptime 권장\n');
+        // Keep-Alive 시스템 (10분마다 자체 ping)
+        setInterval(() => {
+            const url = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+            
+            fetch(`${url}/health`)
+                .then(res => res.json())
+                .then(data => {
+                    console.log(`✅ Keep-Alive: ${data.timestamp} (Uptime: ${data.uptime}초, Users: ${data.users}, Records: ${data.records})`);
+                })
+                .catch(err => {
+                    console.log(`⚠️ Keep-Alive 실패: ${err.message}`);
+                });
+        }, 10 * 60 * 1000); // 10분마다
         
         // 자동 배지 수여 스케줄러 (매일 23:59 체크)
         setInterval(() => {
             autoAwardBadges();
         }, 60 * 1000); // 1분마다 체크
         
-        console.log('🏆 자동 배지 수여 시스템 활성화 (매달 말일 23:59)');
+        console.log('⏰ Keep-Alive 시스템 활성화 (10분 간격)');
+        console.log('🔄 서버가 자동으로 깨어있는 상태를 유지합니다');
+        console.log('💡 권장: UptimeRobot(https://uptimerobot.com)으로 외부 모니터링 추가');
+        console.log('🏆 자동 배지 수여 시스템 활성화 (2026년 3월 31일부터 매달 말일 23:59)');
         console.log('📅 배지는 자동으로 상위 5명에게 수여됩니다\n');
     });
 }).catch(error => {
